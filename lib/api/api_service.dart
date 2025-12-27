@@ -11,7 +11,8 @@ import '../models/category.dart';
 
 class ApiService {
   // ⚠️ REPLACE WITH YOUR PC IP
-  static const String baseUrl = "http://192.168.0.138:8000/api";
+  static const String baseUrl = "http://192.168.0.124:8000/api";
+  static const String app_key = "my_super_secret_key_123";
 
   // Singleton pattern (Optional, but good practice)
   static final ApiService _instance = ApiService._internal();
@@ -62,7 +63,6 @@ class ApiService {
 
   // 2. Fetch Feed
   Future<List<Post>> getFeed({int? userId, int? categoryId}) async {
-
     final prefs = await SharedPreferences.getInstance();
     final token = prefs.getString('auth_token');
 
@@ -71,7 +71,8 @@ class ApiService {
       url += 'app_user_id=$userId&';
     }
 
-    if (categoryId != null) { // <--- Add logic
+    if (categoryId != null) {
+      // <--- Add logic
       url += 'category_id=$categoryId&';
     }
     if (kDebugMode) {
@@ -270,6 +271,97 @@ class ApiService {
       return AppUser.fromJson(jsonDecode(response.body));
     } else {
       throw Exception('Failed to load user profile');
+    }
+  }
+
+  Future<String> _getDeviceUuid() async {
+    final deviceInfo = DeviceInfoPlugin();
+    if (Platform.isAndroid) {
+      final androidInfo = await deviceInfo.androidInfo;
+      return androidInfo.id;
+    } else if (Platform.isIOS) {
+      final iosInfo = await deviceInfo.iosInfo;
+      return iosInfo.identifierForVendor ?? 'unknown_ios';
+    }
+    return 'unknown_device';
+  }
+
+  // 10. Login with Email
+  Future<bool> login(String email, String password) async {
+    final prefs = await SharedPreferences.getInstance();
+    final uuid = await _getDeviceUuid(); // Get UUID
+
+    try {
+      final response = await http.post(
+        Uri.parse('$baseUrl/auth/login'), // Standard Laravel route
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+          'X-App-Key': app_key,
+        },
+        body: jsonEncode({
+          'email': email,
+          'password': password,
+          'device_uuid': uuid, // Send UUID
+          'device_name': 'mobile_app', // Required by Sanctum
+        }),
+      );
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        // Laravel Sanctum usually returns just the token string in plain text
+        // OR a JSON object like { "token": "..." } depending on your Controller.
+        // Let's assume standard JSON: { "token": "..." }
+        String token = data['token'];
+
+        await prefs.setString('auth_token', token);
+        return true;
+      } else {
+        print("Login Failed: ${response.body}");
+        return false;
+      }
+    } catch (e) {
+      print("Login Error: $e");
+      return false;
+    }
+  }
+
+  // 11. Register with Email
+  Future<bool> register(String name, String email, String password) async {
+    final prefs = await SharedPreferences.getInstance();
+    final uuid = await _getDeviceUuid(); // Get UUID
+
+    try {
+      final response = await http.post(
+        Uri.parse('$baseUrl/auth/register'),
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+          'X-App-Key': app_key, // Match your Laravel Secret
+        },
+        body: jsonEncode({
+          'name': name,
+          'email': email,
+          'password': password,
+          'password_confirmation': password,
+          'device_name': 'mobile_app',
+          'device_uuid': uuid, // Send UUID
+        }),
+      );
+
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        final data = jsonDecode(response.body);
+        String token = data['token'];
+
+        await prefs.setString('auth_token', token);
+        return true;
+      } else {
+        print("Register Failed: ${response.body}");
+        return false;
+      }
+    } catch (e) {
+      print("Register Error: $e");
+      return false;
     }
   }
 }

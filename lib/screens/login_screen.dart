@@ -1,5 +1,7 @@
+import 'package:dua_app/screens/email_auth_screen.dart';
 import 'package:flutter/material.dart';
 import '../api/api_service.dart';
+import '../theme/app_colors.dart'; // Import Theme
 import 'feed_screen.dart';
 
 class LoginScreen extends StatefulWidget {
@@ -21,7 +23,7 @@ class _LoginScreenState extends State<LoginScreen> {
     setState(() => _isLoading = false);
 
     if (token != null && mounted) {
-      // Success! Navigate to Feed and clear the back stack
+      // Success! Navigate to Feed
       Navigator.pushReplacement(
         context,
         MaterialPageRoute(builder: (context) => const FeedScreen()),
@@ -46,85 +48,110 @@ class _LoginScreenState extends State<LoginScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: AppColors.backgroundDark, // Theme Background
       body: SafeArea(
         child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 30.0),
+          padding: const EdgeInsets.symmetric(horizontal: 24.0),
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              // --- Logo Section ---
-              const Icon(Icons.mosque, size: 100, color: Colors.teal),
+              // --- Logo / Branding ---
+              const Icon(
+                Icons.nightlight_round,
+                size: 80,
+                color: AppColors.primary, // Theme Primary Color
+              ),
               const SizedBox(height: 20),
               const Text(
-                'Dua App',
+                "Dua Community",
                 textAlign: TextAlign.center,
                 style: TextStyle(
-                  fontSize: 32,
+                  fontSize: 28,
                   fontWeight: FontWeight.bold,
-                  color: Colors.teal,
+                  color: AppColors.textPrimary, // Theme White
                 ),
               ),
               const SizedBox(height: 10),
-              const Text(
-                'Share and discover beautiful Posts.',
+              Text(
+                "Share and discover powerful Duas.",
                 textAlign: TextAlign.center,
-                style: TextStyle(fontSize: 16, color: Colors.grey),
+                style: TextStyle(
+                  fontSize: 16,
+                  color: AppColors.textSecondary, // Theme Grey
+                ),
               ),
+
               const SizedBox(height: 60),
 
-              // --- Social Login Buttons (Placeholders) ---
+              // --- Social Buttons ---
+
+              // 1. Google (Preserved)
               OutlinedButton.icon(
                 onPressed: () => _showComingSoon("Google"),
-                icon: const Icon(Icons.g_mobiledata, size: 28),
-                label: const Text('Continue with Google'),
+                icon: const Icon(Icons.g_mobiledata, size: 24),
+                label: const Text("Continue with Google"),
                 style: OutlinedButton.styleFrom(
                   padding: const EdgeInsets.symmetric(vertical: 12),
+                  foregroundColor: AppColors.textPrimary, // Theme White
+                  side: BorderSide(color: AppColors.border), // Theme Border
                 ),
               ),
               const SizedBox(height: 15),
+
+              // 2. Facebook (Preserved - NOT Apple)
               OutlinedButton.icon(
                 onPressed: () => _showComingSoon("Facebook"),
-                icon: const Icon(Icons.facebook, size: 28),
-                label: const Text('Continue with Facebook'),
+                icon: const Icon(Icons.facebook, size: 24),
+                label: const Text("Continue with Facebook"),
                 style: OutlinedButton.styleFrom(
                   padding: const EdgeInsets.symmetric(vertical: 12),
+                  foregroundColor: AppColors.textPrimary, // Theme White
+                  side: BorderSide(color: AppColors.border), // Theme Border
                 ),
               ),
               const SizedBox(height: 15),
+
+              // 3. Email (Preserved)
               OutlinedButton.icon(
-                onPressed: () => _showComingSoon("Email"),
+                onPressed: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (context) => const EmailAuthScreen()),
+                  );
+                },
                 icon: const Icon(Icons.email_outlined, size: 24),
-                label: const Text('Continue with Email'),
+                label: const Text("Continue with Email"),
                 style: OutlinedButton.styleFrom(
                   padding: const EdgeInsets.symmetric(vertical: 12),
+                  foregroundColor: AppColors.textPrimary, // Theme White
+                  side: BorderSide(color: AppColors.border), // Theme Border
                 ),
               ),
 
               const SizedBox(height: 40),
 
               // --- Divider ---
-              const Row(
+              Row(
                 children: [
-                  Expanded(child: Divider()),
+                  Expanded(child: Divider(color: AppColors.border)), // Theme Divider
                   Padding(
-                    padding: EdgeInsets.symmetric(horizontal: 10),
-                    child: Text("OR"),
+                    padding: const EdgeInsets.symmetric(horizontal: 10),
+                    child: Text("OR", style: TextStyle(color: AppColors.textSecondary)),
                   ),
-                  Expanded(child: Divider()),
+                  Expanded(child: Divider(color: AppColors.border)),
                 ],
               ),
 
               const SizedBox(height: 40),
 
-              // --- Guest Login Button (Active) ---
+              // --- Guest Login Button ---
               _isLoading
-                  ? const Center(child: CircularProgressIndicator())
+                  ? const Center(child: CircularProgressIndicator(color: AppColors.primary))
                   : ElevatedButton(
                 onPressed: _handleGuestLogin,
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.teal,
+                  backgroundColor: AppColors.primary, // Theme Primary
                   foregroundColor: Colors.white,
                   padding: const EdgeInsets.symmetric(vertical: 15),
                   shape: RoundedRectangleBorder(
