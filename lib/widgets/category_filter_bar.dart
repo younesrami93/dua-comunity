@@ -1,3 +1,4 @@
+import 'package:dua_app/l10n/app_localizations.dart';
 import 'package:flutter/material.dart';
 import '../api/api_service.dart';
 import '../models/category.dart';
@@ -51,9 +52,12 @@ class _CategoryFilterBarState extends State<CategoryFilterBar> {
       );
     }
 
-    // Add "All" option at the beginning
+    // ✅ Access Localization
+    final l10n = AppLocalizations.of(context)!;
+
+    // Add "All" option at the beginning with localized name
     final allCategories = [
-      Category(id: -1, name: "All", slug: "all"), // ID -1 represents "All"
+      Category(id: -1, name: l10n.allCategories, slug: "all"), // ✅ "All"
       ..._categories
     ];
 
@@ -98,7 +102,7 @@ class _CategoryFilterBarState extends State<CategoryFilterBar> {
         ),
         child: Center(
           child: Text(
-            category.name,
+            Category.getLocalizedName(context, category),
             style: TextStyle(
               color: isSelected ? Colors.white : AppColors.textSecondary,
               fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,

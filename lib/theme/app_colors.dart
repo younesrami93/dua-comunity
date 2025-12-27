@@ -7,8 +7,8 @@ class AppColors {
 
   // Text
   static const Color textPrimary = Colors.white;
-  static final Color textSecondary = Colors.grey.shade500;
-  static final Color textTertiary = Colors.grey.shade600;
+  static const Color textSecondary = Color(0xFF9E9E9E);
+  static const Color textTertiary =  Color(0xFF838383);
 
   // UI Elements
   static final Color border = Colors.grey.shade900;

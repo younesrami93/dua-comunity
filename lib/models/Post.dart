@@ -6,6 +6,7 @@ class Post {
   final String createdAt;
   final int authorId;
   int likesCount;
+  bool is_anonymous;
   int commentsCount;
   int sharesCount;
   bool isLiked;
@@ -20,6 +21,7 @@ class Post {
     required this.createdAt,
     required this.authorId,
     required this.sharesCount,
+    required this.is_anonymous,
     this.isLiked = false,
   });
 
@@ -34,6 +36,7 @@ class Post {
           ? json['category']['name']
           : 'General',
       likesCount: json['likes_count'] ?? 0,
+      is_anonymous: json['is_anonymous'] ?? false,
       authorId: json['author'] != null ? json['author']['id'] : 0,
       sharesCount: json['shares_count'] ?? 0,
       createdAt: json['created_at'] ?? DateTime.now().toIso8601String(),

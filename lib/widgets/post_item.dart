@@ -1,5 +1,8 @@
+import 'package:dua_app/l10n/app_localizations.dart';
 import 'package:dua_app/screens/profile_screen.dart';
 import 'package:flutter/material.dart';
+import 'package:share_plus/share_plus.dart';
+// ✅ Import generated localizations
 import '../models/post.dart';
 import '../utils/date_utils.dart';
 import '../theme/app_colors.dart';
@@ -18,11 +21,13 @@ class PostItem extends StatefulWidget {
 
 class _PostItemState extends State<PostItem> {
   late Post _post;
+  int? _currentUserId; // ✅ Store current user ID
 
   @override
   void initState() {
     super.initState();
     _post = widget.post;
+    _fetchCurrentUserId(); // ✅ Fetch ID
   }
 
   @override
@@ -31,8 +36,58 @@ class _PostItemState extends State<PostItem> {
     _post = widget.post; // Sync if parent updates
   }
 
+  // ✅ Fetch Current User to check ownership
+  Future<void> _fetchCurrentUserId() async {
+    try {
+      final user = await ApiService().getUserProfile();
+      if (mounted) {
+        setState(() {
+          _currentUserId = user.id;
+        });
+      }
+    } catch (e) {
+      // Fail silently or log
+      print("Error fetching user ID: $e");
+    }
+  }
+
+  // ✅ Share Function (Localized)
+  void _sharePost() {
+    // Access localization using the current context
+    final l10n = AppLocalizations.of(context)!;
+    final String text = "${_post.content}\n\n${l10n.sharePostText}"; // "Shared via Dua Community"
+    Share.share(text);
+  }
+
+  void _openProfile(BuildContext context) {
+    // If it's the post author and they are anonymous (and not me), do nothing
+    if (_post.authorId == 0) return;
+
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => ProfileScreen(userId: _post.authorId),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
+    // ✅ Access Localization
+    final l10n = AppLocalizations.of(context)!;
+
+    // ✅ Logic: Is this my post?
+    final bool isMine = _currentUserId != null && _currentUserId == _post.authorId;
+
+    // Check if the post is anonymous
+    final bool isAnonymous = _post.is_anonymous;
+
+    // ✅ Display Logic:
+    final bool showRealIdentity = !isAnonymous || isMine;
+
+    // Localized "Anonymous" fallback
+    final String displayName = showRealIdentity ? _post.authorName : l10n.anonymousUser;
+
     return GestureDetector(
       onTap: () {
         Navigator.push(
@@ -53,17 +108,20 @@ class _PostItemState extends State<PostItem> {
           children: [
             // --- COLUMN 1: Avatar ---
             GestureDetector(
-              onTap: () => _openProfile(context),
+              // ✅ Tap logic: Enabled if showing real identity
+              onTap: showRealIdentity ? () => _openProfile(context) : null,
               child: CircleAvatar(
                 radius: 20,
-                backgroundColor: AppColors.surface,
-                child: Text(
-                  _post.authorName[0].toUpperCase(),
+                backgroundColor: showRealIdentity ? AppColors.surface : Colors.grey,
+                child: showRealIdentity
+                    ? Text(
+                  displayName.isNotEmpty ? displayName[0].toUpperCase() : '?',
                   style: const TextStyle(
                     color: AppColors.accent,
                     fontWeight: FontWeight.bold,
                   ),
-                ),
+                )
+                    : const Icon(Icons.person, color: Colors.white, size: 20),
               ),
             ),
 
@@ -78,16 +136,52 @@ class _PostItemState extends State<PostItem> {
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      Text(
-                        _post.authorName,
-                        style: const TextStyle(
-                          color: AppColors.textPrimary,
-                          fontWeight: FontWeight.bold,
-                          fontSize: 15,
+                      Expanded(
+                        child: Row(
+                          children: [
+                            // ✅ Name
+                            Flexible(
+                              child: GestureDetector(
+                                onTap: showRealIdentity ? () => _openProfile(context) : null,
+                                child: Text(
+                                  displayName,
+                                  style: const TextStyle(
+                                    color: AppColors.textPrimary,
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 15,
+                                  ),
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ),
+                            ),
+
+                            // ✅ Anonymous Ticker (Only if it's mine and anonymous)
+                            if (isMine && isAnonymous)
+                              Container(
+                                margin: const EdgeInsets.only(left: 8),
+                                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                decoration: BoxDecoration(
+                                  color: AppColors.textSecondary.withOpacity(0.2),
+                                  borderRadius: BorderRadius.circular(4),
+                                ),
+                                child: Text(
+                                  l10n.anonymousUser, // ✅ Localized Badge
+                                  style: TextStyle(
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.bold,
+                                    color: AppColors.textSecondary,
+                                  ),
+                                ),
+                              ),
+                          ],
                         ),
                       ),
+
+                      const SizedBox(width: 8),
+
                       Text(
-                        DateFormatter.timeAgo(_post.createdAt),
+                        // ✅ Updated DateFormatter to use context
+                        DateFormatter.timeAgo(context, _post.createdAt),
                         style: TextStyle(
                           color: AppColors.textSecondary,
                           fontSize: 12,
@@ -167,7 +261,7 @@ class _PostItemState extends State<PostItem> {
                         icon: Icons.share_outlined,
                         color: AppColors.textSecondary,
                         label: '',
-                        onTap: () {},
+                        onTap: _sharePost, // ✅ Share button works
                       ),
                     ],
                   ),
@@ -199,15 +293,6 @@ class _PostItemState extends State<PostItem> {
             ],
           ],
         ),
-      ),
-    );
-  }
-
-  void _openProfile(BuildContext context) {
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (context) => ProfileScreen(userId: _post.authorId),
       ),
     );
   }

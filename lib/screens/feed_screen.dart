@@ -1,4 +1,7 @@
+import 'package:dua_app/l10n/app_localizations.dart';
+import 'package:dua_app/screens/settings_screen.dart';
 import 'package:flutter/material.dart';
+// ✅ Import generated localizations
 import 'package:shared_preferences/shared_preferences.dart';
 import '../api/api_service.dart';
 import '../models/AppUser.dart';
@@ -8,7 +11,7 @@ import '../widgets/category_filter_bar.dart';
 import 'add_post_screen.dart';
 import 'login_screen.dart';
 import 'profile_screen.dart';
-import '../widgets/post_item.dart'; // ✅ Import the reusable widget
+import '../widgets/post_item.dart';
 
 class FeedScreen extends StatefulWidget {
   const FeedScreen({super.key});
@@ -21,7 +24,7 @@ class _FeedScreenState extends State<FeedScreen> {
   List<Post> _posts = [];
   AppUser? _currentUser;
   bool _isLoading = true;
-  int? _selectedCategoryId; // ✅ State for selected filter
+  int? _selectedCategoryId;
 
   @override
   void initState() {
@@ -51,35 +54,26 @@ class _FeedScreenState extends State<FeedScreen> {
       }
     } catch (e) {
       if (mounted) setState(() => _isLoading = false);
-      // Optional: Show error
     }
   }
 
-  Future<void> _logout() async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.remove('auth_token');
-    if (mounted) {
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(builder: (context) => const LoginScreen()),
-      );
-    }
-  }
-
-  void _goToProfile() {
-    Navigator.push(
+  void _goToProfile() async {
+    await Navigator.push(
       context,
       MaterialPageRoute(builder: (context) => const ProfileScreen()),
     );
+    _loadData(); // Refresh on return
   }
 
   @override
   Widget build(BuildContext context) {
+    // ✅ Access Localization
+    final l10n = AppLocalizations.of(context)!;
+
     return Scaffold(
       appBar: AppBar(
         automaticallyImplyLeading: false,
         titleSpacing: 0,
-
         title: GestureDetector(
           onTap: _goToProfile,
           child: Padding(
@@ -87,70 +81,66 @@ class _FeedScreenState extends State<FeedScreen> {
             child: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                // 1. Avatar
+                // Avatar
                 CircleAvatar(
-                  radius: 24,
+                  radius: 20,
                   backgroundColor: AppColors.surface,
                   backgroundImage: _currentUser?.avatarUrl != null
                       ? NetworkImage(_currentUser!.avatarUrl!)
                       : null,
                   child: _currentUser?.avatarUrl == null
                       ? Text(
-                          _currentUser?.username[0].toUpperCase() ?? "G",
-                          style: const TextStyle(
-                            color: AppColors.accent,
-                            fontWeight: FontWeight.bold,
-                            fontSize: 18,
-                          ),
-                        )
+                    _currentUser?.username[0].toUpperCase() ?? "G",
+                    style: const TextStyle(
+                      color: AppColors.accent,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 18,
+                    ),
+                  )
                       : null,
                 ),
 
-                const SizedBox(width: 10),
+                const SizedBox(width: 12),
 
-                // 2. Name & Status
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      _currentUser?.username ?? "Guest",
-                      style: const TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    if (_currentUser != null && _currentUser!.isGuest)
-                      Text(
-                        'Guest',
-                        style: TextStyle(
-                          color: AppColors.textSecondary,
-                          fontSize: 12,
-                        ),
-                      ),
-                  ],
+                // App Name (Localized)
+                Text(
+                  l10n.appTitle, // ✅ "Dua Community"
+                  style: const TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                  ),
                 ),
               ],
             ),
           ),
         ),
         actions: [
-          IconButton(icon: const Icon(Icons.logout), onPressed: _logout),
+          // Settings Button
+          IconButton(
+            icon: const Icon(Icons.settings),
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => const SettingsScreen()),
+              );
+            },
+          ),
         ],
       ),
       body: Column(
         children: [
-          // ✅ 1. Place the Filter Bar here
+          // Filter Bar
           CategoryFilterBar(
             selectedCategoryId: _selectedCategoryId,
             onCategorySelected: (id) {
               setState(() {
                 _selectedCategoryId = id;
               });
-              _loadData(); // Refresh feed with new filter
+              _loadData();
             },
           ),
 
-          // ✅ 2. The List takes the remaining space
+          // Post List
           Expanded(
             child: RefreshIndicator(
               onRefresh: _loadData,
@@ -158,24 +148,24 @@ class _FeedScreenState extends State<FeedScreen> {
               backgroundColor: AppColors.surface,
               child: _isLoading
                   ? const Center(
-                      child: CircularProgressIndicator(
-                        color: AppColors.primary,
-                      ),
-                    )
+                child: CircularProgressIndicator(
+                  color: AppColors.primary,
+                ),
+              )
                   : _posts.isEmpty
-                  ? _buildEmptyState()
+                  ? _buildEmptyState(l10n) // Pass localization
                   : ListView.separated(
-                      itemCount: _posts.length,
-                      separatorBuilder: (context, index) => const Divider(),
-                      itemBuilder: (context, index) {
-                        return PostItem(
-                          post: _posts[index],
-                          onRefresh: () {
-                            setState(() {});
-                          },
-                        );
-                      },
-                    ),
+                itemCount: _posts.length,
+                separatorBuilder: (context, index) => const Divider(),
+                itemBuilder: (context, index) {
+                  return PostItem(
+                    post: _posts[index],
+                    onRefresh: () {
+                      setState(() {});
+                    },
+                  );
+                },
+              ),
             ),
           ),
         ],
@@ -196,48 +186,56 @@ class _FeedScreenState extends State<FeedScreen> {
     );
   }
 
-
-  Widget _buildEmptyState() {
+  Widget _buildEmptyState(AppLocalizations l10n) {
     return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(40.0),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(Icons.dashboard_customize, size: 60, color: AppColors.textSecondary.withOpacity(0.5)),
-            const SizedBox(height: 16),
-            Text(
-              "No Posts Found",
-              style: TextStyle(color: AppColors.textPrimary, fontSize: 18, fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              _selectedCategoryId != null
-                  ? "No posts for this category yet. Be the first to contribute!"
-                  : "The feed is empty. Share a Post with the community!",
-              textAlign: TextAlign.center,
-              style: TextStyle(color: AppColors.textSecondary, fontSize: 14),
-            ),
-            const SizedBox(height: 24),
-            OutlinedButton.icon(
-              onPressed: () async {
-                final result = await Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (context) => const AddPostScreen()),
-                );
-                if (result == true) {
-                  _loadData();
-                }
-              },
-              icon: const Icon(Icons.add),
-              label: const Text("Create Post"),
-              style: OutlinedButton.styleFrom(
-                foregroundColor: AppColors.primary,
-                side: const BorderSide(color: AppColors.primary),
-                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+      child: SingleChildScrollView(
+        physics: const AlwaysScrollableScrollPhysics(),
+        child: Padding(
+          padding: const EdgeInsets.all(32.0),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(Icons.feed_outlined,
+                  size: 80, color: AppColors.textSecondary.withOpacity(0.5)),
+              const SizedBox(height: 16),
+              Text(
+                l10n.noPostsFound, // ✅ "No Posts Found"
+                style: const TextStyle(
+                    color: AppColors.textPrimary,
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold),
               ),
-            )
-          ],
+              const SizedBox(height: 8),
+              Text(
+                _selectedCategoryId != null
+                    ? l10n.noPostsCategory // ✅ "No posts for this category..."
+                    : l10n.noPostsGeneral, // ✅ "The feed is empty..."
+                textAlign: TextAlign.center,
+                style: const TextStyle(color: AppColors.textSecondary, fontSize: 14),
+              ),
+              const SizedBox(height: 24),
+              OutlinedButton.icon(
+                onPressed: () async {
+                  final result = await Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                        builder: (context) => const AddPostScreen()),
+                  );
+                  if (result == true) {
+                    _loadData();
+                  }
+                },
+                icon: const Icon(Icons.add),
+                label: Text(l10n.createPostButton), // ✅ "Create Post"
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: AppColors.primary,
+                  side: const BorderSide(color: AppColors.primary),
+                  padding:
+                  const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                ),
+              )
+            ],
+          ),
         ),
       ),
     );

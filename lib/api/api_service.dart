@@ -1,52 +1,151 @@
 import 'dart:convert';
 import 'dart:io';
+import 'package:dua_app/l10n/app_localizations.dart';
+import 'package:dua_app/main.dart'; // Ensure this imports your global navigatorKey
+import 'package:dua_app/screens/login_screen.dart';
 import 'package:flutter/foundation.dart' hide Category;
+import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:device_info_plus/device_info_plus.dart';
+// ✅ Import generated localizations
+
 import '../models/AppUser.dart';
 import '../models/Comment.dart';
 import '../models/post.dart';
 import '../models/category.dart';
 
 class ApiService {
-  // ⚠️ REPLACE WITH YOUR PC IP
+  // ⚠️ REPLACE WITH YOUR ACTUAL API URL (Use HTTPS for production)
   static const String baseUrl = "http://192.168.0.124:8000/api";
   static const String app_key = "my_super_secret_key_123";
 
-  // Singleton pattern (Optional, but good practice)
+  // Singleton pattern
   static final ApiService _instance = ApiService._internal();
-
   factory ApiService() => _instance;
-
   ApiService._internal();
 
-  // 1. Guest Login (The logic you saw earlier)
+  // ==========================================================
+  // ✅ GLOBAL BANNED HANDLER & REQUEST HELPERS
+  // ==========================================================
+
+  Future<void> _handleResponseCheck(http.Response response) async {
+    // Check for 403 Forbidden specifically
+    if (response.statusCode == 403) {
+      bool isBanned = false;
+      try {
+        final body = jsonDecode(response.body);
+        // Check if the message mentions "banned"
+        if (body['message'] != null &&
+            body['message'].toString().toLowerCase().contains('banned')) {
+          isBanned = true;
+        }
+      } catch (_) {}
+
+      if (isBanned) {
+        // 1. Clear Data
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.clear();
+
+        // 2. Show Modal & Redirect (Using Global Key)
+        final context = navigatorKey.currentContext;
+        if (context != null && context.mounted) {
+          // ✅ Get Localizations
+          final l10n = AppLocalizations.of(context);
+
+          showDialog(
+            context: context,
+            barrierDismissible: false, // User MUST click OK
+            builder: (ctx) => AlertDialog(
+              title: Text(l10n?.accountBannedTitle ?? "Account Banned", style: const TextStyle(color: Colors.red)),
+              content: Text(l10n?.accountBannedMessage ?? "Your account has been banned due to policy violations. You will be logged out."),
+              actions: [
+                TextButton(
+                  onPressed: () {
+                    Navigator.pop(ctx); // Close Dialog
+                    // Redirect to Login and remove all history
+                    Navigator.pushAndRemoveUntil(
+                      context,
+                      MaterialPageRoute(builder: (context) => const LoginScreen()),
+                          (route) => false,
+                    );
+                  },
+                  child: Text(l10n?.ok ?? "OK", style: const TextStyle(fontWeight: FontWeight.bold)),
+                )
+              ],
+            ),
+          );
+        }
+      }
+    }
+  }
+
+  // 1. Authenticated GET Wrapper
+  Future<http.Response> _get(String endpoint) async {
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString('auth_token');
+
+    final response = await http.get(
+      Uri.parse('$baseUrl$endpoint'),
+      headers: {
+        'Authorization': 'Bearer $token',
+        'Accept': 'application/json',
+      },
+    );
+
+    await _handleResponseCheck(response); // Global Ban Check
+    return response;
+  }
+
+  // 2. Authenticated POST Wrapper
+  Future<http.Response> _post(String endpoint, Map<String, dynamic> body) async {
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString('auth_token');
+
+    final response = await http.post(
+      Uri.parse('$baseUrl$endpoint'),
+      headers: {
+        'Authorization': 'Bearer $token',
+        'Content-Type': 'application/json',
+        'Accept': 'application/json',
+      },
+      body: jsonEncode(body),
+    );
+
+    await _handleResponseCheck(response); // Global Ban Check
+    return response;
+  }
+
+  // ==========================================================
+  // PUBLIC METHODS
+  // ==========================================================
+
+  // 1. Guest Login
   Future<String?> loginAsGuest() async {
     final prefs = await SharedPreferences.getInstance();
-
-    // Return token if we already have it
     if (prefs.containsKey('auth_token')) {
       return prefs.getString('auth_token');
     }
 
-    // Otherwise, generate UUID and register
-    final deviceInfo = DeviceInfoPlugin();
-    String uuid = '';
+    final uuid = await _getDeviceUuid();
 
-    if (Platform.isAndroid) {
-      final androidInfo = await deviceInfo.androidInfo;
-      uuid = androidInfo.id;
-    } else if (Platform.isIOS) {
-      final iosInfo = await deviceInfo.iosInfo;
-      uuid = iosInfo.identifierForVendor ?? 'unknown_ios';
+    // Check if we have a stored guest UUID to reuse (optional feature)
+    String? guestUuid = prefs.getString('guest_uuid');
+    if (guestUuid == null) {
+      // guestUuid = const Uuid().v4();
+      // await prefs.setString('guest_uuid', guestUuid);
+      guestUuid = uuid; // Fallback to device ID for now
     }
 
     try {
       final response = await http.post(
         Uri.parse('$baseUrl/auth/guest'),
-        headers: {'Content-Type': 'application/json'},
-        body: jsonEncode({'device_uuid': uuid}),
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+          'X-App-Key': app_key,
+        },
+        body: jsonEncode({'device_uuid': guestUuid}),
       );
 
       if (response.statusCode == 200) {
@@ -56,88 +155,45 @@ class ApiService {
         return token;
       }
     } catch (e) {
-      print("Login Error: $e");
+      print("Guest Login Error: $e");
     }
     return null;
   }
 
   // 2. Fetch Feed
   Future<List<Post>> getFeed({int? userId, int? categoryId}) async {
-    final prefs = await SharedPreferences.getInstance();
-    final token = prefs.getString('auth_token');
+    String url = '/posts?';
+    if (userId != null) url += 'app_user_id=$userId&';
+    if (categoryId != null) url += 'category_id=$categoryId&';
 
-    String url = '$baseUrl/posts?';
-    if (userId != null) {
-      url += 'app_user_id=$userId&';
-    }
-
-    if (categoryId != null) {
-      // <--- Add logic
-      url += 'category_id=$categoryId&';
-    }
-    if (kDebugMode) {
-      print(url);
-    }
-
-    final response = await http.get(
-      Uri.parse(url),
-      headers: {
-        'Authorization': 'Bearer $token', // Send the token!
-        'Accept': 'application/json',
-      },
-    );
+    final response = await _get(url);
 
     if (response.statusCode == 200) {
       final json = jsonDecode(response.body);
-      final List data = json['data']; // Laravel pagination puts list in "data"
+      final List data = json['data'];
       return data.map((e) => Post.fromJson(e)).toList();
     } else {
       throw Exception('Failed to load feed');
     }
   }
 
-  // 3. Get Comments (Updated for Pagination)
-  // Returns a Map with the list and the 'next_cursor' for the next page
-  Future<Map<String, dynamic>> getComments(
-    int postId, {
-    String? nextCursor,
-  }) async {
-    final prefs = await SharedPreferences.getInstance();
-    final token = prefs.getString('auth_token');
+  // 3. Get Comments
+  Future<Map<String, dynamic>> getComments(int postId, {String? nextCursor}) async {
+    String url = '/posts/$postId/comments';
+    if (nextCursor != null) url += '?cursor=$nextCursor';
 
-    String url = '$baseUrl/posts/$postId/comments';
-    if (nextCursor != null) {
-      url += '?cursor=$nextCursor';
-    }
-
-    final response = await http.get(
-      Uri.parse(url),
-      headers: {'Authorization': 'Bearer $token', 'Accept': 'application/json'},
-    );
-
-    if (kDebugMode) {
-      print("DEBUG: API Response Code: ${response.statusCode}");
-      print("DEBUG: API Body: ${response.body}");
-      print("DEBUG: API Headers: ${response.headers}");
-    }
+    final response = await _get(url);
 
     if (response.statusCode == 200) {
       final json = jsonDecode(response.body);
       final List data = json['data'];
 
-      // ✅ FIX: Safely try to find the cursor, or default to null
       String? next;
-
-      // Option A: Laravel puts it in 'next_cursor' at root
       if (json['next_cursor'] != null) {
         next = json['next_cursor'];
-      }
-      // Option B: Laravel puts it in 'meta' -> 'next_cursor'
-      else if (json['meta'] != null && json['meta']['next_cursor'] != null) {
+      } else if (json['meta'] != null && json['meta']['next_cursor'] != null) {
         next = json['meta']['next_cursor'];
-      }
-      // Option C: Parse from next_page_url (fallback)
-      else if (json['next_page_url'] != null) {
+      } else if (json['next_page_url'] != null) {
         final uri = Uri.parse(json['next_page_url']);
         next = uri.queryParameters['cursor'];
       }
@@ -153,35 +209,16 @@ class ApiService {
 
   // 4. Post a Comment
   Future<bool> postComment(int postId, String content) async {
-    final prefs = await SharedPreferences.getInstance();
-    final token = prefs.getString('auth_token');
-
-    final response = await http.post(
-      Uri.parse('$baseUrl/posts/$postId/comments'),
-      headers: {
-        'Authorization': 'Bearer $token',
-        'Content-Type': 'application/json',
-        'Accept': 'application/json',
-      },
-      body: jsonEncode({
-        'content': content,
-        // We can add 'parent_id' here later for replies
-      }),
-    );
-
+    final response = await _post('/posts/$postId/comments', {
+      'content': content,
+    });
     return response.statusCode == 201;
   }
 
   // 5. Get List of Categories
   Future<List<Category>> getCategories() async {
-    final prefs = await SharedPreferences.getInstance();
-    final token = prefs.getString('auth_token');
-
-    final response = await http.get(
-      Uri.parse('$baseUrl/categories'),
-      headers: {'Authorization': 'Bearer $token', 'Accept': 'application/json'},
-    );
-
+    final response = await _get('/categories');
+    print(response.body);
     if (response.statusCode == 200) {
       final List data = jsonDecode(response.body);
       return data.map((e) => Category.fromJson(e)).toList();
@@ -190,65 +227,29 @@ class ApiService {
     }
   }
 
-  // 6. Create a new Dua
-  Future<bool> createPost(
-    String content,
-    int categoryId,
-    bool isAnonymous,
-  ) async {
-    final prefs = await SharedPreferences.getInstance();
-    final token = prefs.getString('auth_token');
-
-    final response = await http.post(
-      Uri.parse('$baseUrl/posts'),
-      headers: {
-        'Authorization': 'Bearer $token',
-        'Content-Type': 'application/json',
-        'Accept': 'application/json',
-      },
-      body: jsonEncode({
-        'content': content,
-        'category_id': categoryId,
-        'is_anonymous': isAnonymous,
-      }),
-    );
-
+  // 6. Create a new Post
+  Future<bool> createPost(String content, int categoryId, bool isAnonymous) async {
+    final response = await _post('/posts', {
+      'content': content,
+      'category_id': categoryId,
+      'is_anonymous': isAnonymous,
+    });
     return response.statusCode == 201;
   }
 
   // 7. Toggle Like
   Future<Map<String, dynamic>?> toggleLike(int postId) async {
-    final prefs = await SharedPreferences.getInstance();
-    final token = prefs.getString('auth_token');
+    final response = await _post('/posts/$postId/like', {});
 
-    try {
-      final response = await http.post(
-        Uri.parse('$baseUrl/posts/$postId/like'),
-        headers: {
-          'Authorization': 'Bearer $token',
-          'Accept': 'application/json',
-        },
-      );
-
-      if (response.statusCode == 200) {
-        return jsonDecode(response.body);
-        // Returns: { "message": "Liked", "likes_count": 5, "liked": true }
-      }
-    } catch (e) {
-      print("Like Error: $e");
+    if (response.statusCode == 200) {
+      return jsonDecode(response.body);
     }
     return null;
   }
 
   // 8. Get Current User Profile
   Future<AppUser> getUserProfile() async {
-    final prefs = await SharedPreferences.getInstance();
-    final token = prefs.getString('auth_token');
-
-    final response = await http.get(
-      Uri.parse('$baseUrl/user'), // Standard Sanctum endpoint
-      headers: {'Authorization': 'Bearer $token', 'Accept': 'application/json'},
-    );
+    final response = await _get('/user');
 
     if (response.statusCode == 200) {
       return AppUser.fromJson(jsonDecode(response.body));
@@ -259,13 +260,7 @@ class ApiService {
 
   // 9. Get Specific User by ID
   Future<AppUser> getUserById(int id) async {
-    final prefs = await SharedPreferences.getInstance();
-    final token = prefs.getString('auth_token');
-
-    final response = await http.get(
-      Uri.parse('$baseUrl/users/$id'),
-      headers: {'Authorization': 'Bearer $token', 'Accept': 'application/json'},
-    );
+    final response = await _get('/users/$id');
 
     if (response.statusCode == 200) {
       return AppUser.fromJson(jsonDecode(response.body));
@@ -273,6 +268,64 @@ class ApiService {
       throw Exception('Failed to load user profile');
     }
   }
+
+  // 10. Report Content
+  Future<bool> reportContent({
+    required String type,
+    required int id,
+    required String reason,
+    String? details,
+  }) async {
+    final response = await _post('/report', {
+      'type': type,
+      'id': id,
+      'reason': reason,
+      'details': details,
+    });
+
+    return response.statusCode == 200 || response.statusCode == 201;
+  }
+
+  // 11. Delete Account
+  Future<bool> deleteAccount() async {
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString('auth_token');
+
+    try {
+      final response = await http.delete(
+        Uri.parse('$baseUrl/user'),
+        headers: {
+          'Authorization': 'Bearer $token',
+          'Accept': 'application/json',
+        },
+      );
+
+      await _handleResponseCheck(response);
+
+      return response.statusCode == 200 || response.statusCode == 204;
+    } catch (e) {
+      print("Delete Account Error: $e");
+      return false;
+    }
+  }
+
+  // 12. Secure Logout
+  Future<void> logout() async {
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString('auth_token');
+    if (token == null) return;
+
+    try {
+      await http.post(
+        Uri.parse('$baseUrl/auth/logout'),
+        headers: {'Authorization': 'Bearer $token', 'Accept': 'application/json'},
+      );
+    } catch (_) {}
+  }
+
+  // ==========================================================
+  // AUTH (Login/Register)
+  // ==========================================================
 
   Future<String> _getDeviceUuid() async {
     final deviceInfo = DeviceInfoPlugin();
@@ -286,14 +339,14 @@ class ApiService {
     return 'unknown_device';
   }
 
-  // 10. Login with Email
-  Future<bool> login(String email, String password) async {
+  // Login: Returns NULL if success, String Message if error
+  Future<String?> login(String email, String password) async {
     final prefs = await SharedPreferences.getInstance();
-    final uuid = await _getDeviceUuid(); // Get UUID
+    final uuid = await _getDeviceUuid();
 
     try {
       final response = await http.post(
-        Uri.parse('$baseUrl/auth/login'), // Standard Laravel route
+        Uri.parse('$baseUrl/auth/login'),
         headers: {
           'Content-Type': 'application/json',
           'Accept': 'application/json',
@@ -302,34 +355,37 @@ class ApiService {
         body: jsonEncode({
           'email': email,
           'password': password,
-          'device_uuid': uuid, // Send UUID
-          'device_name': 'mobile_app', // Required by Sanctum
+          'device_uuid': uuid,
+          'device_name': 'mobile_app',
         }),
       );
 
-      if (response.statusCode == 200) {
-        final data = jsonDecode(response.body);
-        // Laravel Sanctum usually returns just the token string in plain text
-        // OR a JSON object like { "token": "..." } depending on your Controller.
-        // Let's assume standard JSON: { "token": "..." }
-        String token = data['token'];
+      final data = jsonDecode(response.body);
 
+      if (response.statusCode == 200) {
+        String token = data['token'];
         await prefs.setString('auth_token', token);
-        return true;
+        return null; // ✅ Success
       } else {
-        print("Login Failed: ${response.body}");
-        return false;
+        // Return the specific error from backend, or fallback to localized generic error
+        final context = navigatorKey.currentContext;
+        final fallback = context != null
+            ? AppLocalizations.of(context)?.loginFailed
+            : "Login failed";
+
+        return data['message'] ?? fallback;
       }
     } catch (e) {
-      print("Login Error: $e");
-      return false;
+      final context = navigatorKey.currentContext;
+      return context != null
+          ? AppLocalizations.of(context)?.connectionError
+          : "Connection error. Please check your internet.";
     }
   }
 
-  // 11. Register with Email
   Future<bool> register(String name, String email, String password) async {
     final prefs = await SharedPreferences.getInstance();
-    final uuid = await _getDeviceUuid(); // Get UUID
+    final uuid = await _getDeviceUuid();
 
     try {
       final response = await http.post(
@@ -337,7 +393,7 @@ class ApiService {
         headers: {
           'Content-Type': 'application/json',
           'Accept': 'application/json',
-          'X-App-Key': app_key, // Match your Laravel Secret
+          'X-App-Key': app_key,
         },
         body: jsonEncode({
           'name': name,
@@ -345,22 +401,17 @@ class ApiService {
           'password': password,
           'password_confirmation': password,
           'device_name': 'mobile_app',
-          'device_uuid': uuid, // Send UUID
+          'device_uuid': uuid,
         }),
       );
 
       if (response.statusCode == 200 || response.statusCode == 201) {
         final data = jsonDecode(response.body);
-        String token = data['token'];
-
-        await prefs.setString('auth_token', token);
+        await prefs.setString('auth_token', data['token']);
         return true;
-      } else {
-        print("Register Failed: ${response.body}");
-        return false;
       }
+      return false;
     } catch (e) {
-      print("Register Error: $e");
       return false;
     }
   }

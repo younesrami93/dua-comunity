@@ -1,10 +1,14 @@
+import 'package:dua_app/l10n/app_localizations.dart';
 import 'package:flutter/material.dart';
+import 'package:share_plus/share_plus.dart';
 import '../api/api_service.dart';
 import '../models/post.dart';
 import '../models/Comment.dart';
 import '../utils/date_utils.dart';
 import '../theme/app_colors.dart';
-import 'profile_screen.dart'; // ✅ Import ProfileScreen
+import 'profile_screen.dart';
+import '../widgets/report_modal.dart';
+import '../widgets/comment_item.dart';
 
 class PostDetailScreen extends StatefulWidget {
   final Post post;
@@ -20,6 +24,7 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
   String? _nextCursor;
   bool _isLoadingComments = true;
   bool _isLoadingMore = false;
+  int? _currentUserId;
 
   final TextEditingController _commentController = TextEditingController();
   final FocusNode _commentFocusNode = FocusNode();
@@ -28,6 +33,7 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
   void initState() {
     super.initState();
     _post = widget.post;
+    _fetchCurrentUserId();
     _loadComments();
   }
 
@@ -36,6 +42,19 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
     _commentController.dispose();
     _commentFocusNode.dispose();
     super.dispose();
+  }
+
+  Future<void> _fetchCurrentUserId() async {
+    try {
+      final user = await ApiService().getUserProfile();
+      if (mounted) {
+        setState(() {
+          _currentUserId = user.id;
+        });
+      }
+    } catch (e) {
+      print("Could not fetch current user ID: $e");
+    }
   }
 
   Future<void> _loadComments() async {
@@ -87,18 +106,48 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
     if (success) _loadComments();
   }
 
-  // ✅ NEW: Navigation Helper
-  void _openProfile() {
+  void _openProfile(int userId) {
     Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (context) => ProfileScreen(userId: _post.authorId),
+        builder: (context) => ProfileScreen(userId: userId),
       ),
     );
   }
 
+  void _showReportModal() {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: AppColors.surface,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (context) {
+        return DraggableScrollableSheet(
+          initialChildSize: 0.6,
+          minChildSize: 0.4,
+          maxChildSize: 0.9,
+          expand: false,
+          builder: (context, scrollController) {
+            return ReportModal(postId: _post.id, contentType: 'post');
+          },
+        );
+      },
+    );
+  }
+
+  void _sharePost(AppLocalizations l10n) {
+    // ✅ Localized Share Text
+    final String text = "${_post.content}\n\n${l10n.sharePostText}";
+    Share.share(text);
+  }
+
   @override
   Widget build(BuildContext context) {
+    // ✅ Access Localization
+    final l10n = AppLocalizations.of(context)!;
+
     int itemCount = 1;
     if (_isLoadingComments) {
       itemCount += 1;
@@ -111,8 +160,41 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Post'),
-        actions: [IconButton(icon: const Icon(Icons.more_horiz), onPressed: () {})],
+        title: Text(l10n.postTitle), // ✅ "Post"
+        actions: [
+          PopupMenuButton<String>(
+            icon: const Icon(Icons.more_horiz),
+            onSelected: (value) {
+              if (value == 'report') {
+                _showReportModal();
+              } else if (value == 'share') {
+                _sharePost(l10n);
+              }
+            },
+            itemBuilder: (BuildContext context) => <PopupMenuEntry<String>>[
+              PopupMenuItem<String>(
+                value: 'report',
+                child: Row(
+                  children: [
+                    const Icon(Icons.flag_outlined, size: 20, color: Colors.grey),
+                    const SizedBox(width: 10),
+                    Text(l10n.reportAction), // ✅ "Report"
+                  ],
+                ),
+              ),
+              PopupMenuItem<String>(
+                value: 'share',
+                child: Row(
+                  children: [
+                    const Icon(Icons.share_outlined, size: 20, color: Colors.grey),
+                    const SizedBox(width: 10),
+                    Text(l10n.shareAction), // ✅ "Share"
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ],
       ),
       body: Column(
         children: [
@@ -121,79 +203,71 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
               padding: const EdgeInsets.only(bottom: 20),
               itemCount: itemCount,
               itemBuilder: (context, index) {
-                if (index == 0) return _buildHeader();
+                if (index == 0) return _buildHeader(l10n); // Pass l10n
 
                 if (_isLoadingComments) {
                   return const Padding(
                     padding: EdgeInsets.all(40.0),
-                    child: Center(child: CircularProgressIndicator(color: AppColors.primary)),
+                    child: Center(
+                        child:
+                        CircularProgressIndicator(color: AppColors.primary)),
                   );
                 }
 
                 if (_comments.isEmpty) {
-                  return _buildEmptyState();
+                  return _buildEmptyState(l10n); // Pass l10n
                 }
 
                 if (index == _comments.length + 1) {
                   return TextButton(
                     onPressed: _loadMoreComments,
                     child: _isLoadingMore
-                        ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2))
-                        : const Text("Load more comments", style: TextStyle(color: AppColors.primary)),
+                        ? const SizedBox(
+                        width: 20,
+                        height: 20,
+                        child: CircularProgressIndicator(strokeWidth: 2))
+                        : Text(l10n.loadMoreComments, // ✅ "Load more comments"
+                        style: const TextStyle(color: AppColors.primary)),
                   );
                 }
 
                 return Column(
                   children: [
-                    _buildComment(_comments[index - 1]),
+                    CommentItem(comment: _comments[index - 1]),
                     const Divider(),
                   ],
                 );
               },
             ),
           ),
-          _buildInputArea(),
+          _buildInputArea(l10n), // Pass l10n
         ],
       ),
     );
   }
 
-  Widget _buildEmptyState() {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 40, horizontal: 20),
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(Icons.chat_bubble_outline, size: 48, color: AppColors.textSecondary.withOpacity(0.5)),
-          const SizedBox(height: 16),
-          Text(
-            "No comments yet",
-            style: TextStyle(color: AppColors.textPrimary, fontSize: 16, fontWeight: FontWeight.bold),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            "Be the first to share your thoughts on this Post.",
-            style: TextStyle(color: AppColors.textSecondary, fontSize: 14),
-            textAlign: TextAlign.center,
-          ),
-          const SizedBox(height: 20),
-          OutlinedButton.icon(
-            onPressed: () {
-              _commentFocusNode.requestFocus();
-            },
-            icon: const Icon(Icons.edit, size: 18),
-            label: const Text("Write a comment"),
-            style: OutlinedButton.styleFrom(
-              foregroundColor: AppColors.primary,
-              side: const BorderSide(color: AppColors.primary),
-            ),
-          )
-        ],
-      ),
-    );
-  }
+  Widget _buildHeader(AppLocalizations l10n) {
+    final bool isMine = _currentUserId != null && _currentUserId == _post.authorId;
+    final bool isAnonymous = _post.is_anonymous;
+    final bool showRealIdentity = !isAnonymous || isMine;
 
-  Widget _buildHeader() {
+    // ✅ Localized Anonymous Display Name
+    final String displayName = showRealIdentity ? _post.authorName : l10n.anonymousUser;
+
+    final Widget avatar = showRealIdentity
+        ? CircleAvatar(
+      radius: 20,
+      backgroundColor: AppColors.surface,
+      child: Text(displayName.isNotEmpty ? displayName[0].toUpperCase() : "?",
+          style: const TextStyle(
+              color: AppColors.accent, fontWeight: FontWeight.bold)),
+    )
+        : const CircleAvatar(
+      radius: 20,
+      backgroundColor: Colors.grey,
+      child: Icon(Icons.person, color: Colors.white, size: 20),
+    );
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -204,51 +278,69 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
             children: [
               Row(
                 children: [
-                  // 1. CLICKABLE AVATAR
                   GestureDetector(
-                    onTap: _openProfile, // ✅ TAP HERE
-                    child: CircleAvatar(
-                      radius: 20,
-                      backgroundColor: AppColors.surface,
-                      child: Text(_post.authorName[0].toUpperCase(),
-                          style: const TextStyle(color: AppColors.accent, fontWeight: FontWeight.bold)),
-                    ),
+                    onTap: showRealIdentity ? () => _openProfile(_post.authorId) : null,
+                    child: avatar,
                   ),
-
                   const SizedBox(width: 12),
-
                   Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      // 2. CLICKABLE NAME
-                      GestureDetector(
-                        onTap: _openProfile, // ✅ TAP HERE
-                        child: Text(_post.authorName,
-                            style: const TextStyle(color: AppColors.textPrimary, fontWeight: FontWeight.bold, fontSize: 15)),
+                      Row(
+                        children: [
+                          GestureDetector(
+                            onTap: showRealIdentity ? () => _openProfile(_post.authorId) : null,
+                            child: Text(displayName,
+                                style: const TextStyle(
+                                    color: AppColors.textPrimary,
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 15)),
+                          ),
+                          if (isMine && isAnonymous)
+                            Container(
+                              margin: const EdgeInsets.only(left: 8),
+                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                              decoration: BoxDecoration(
+                                color: AppColors.textSecondary.withOpacity(0.2),
+                                borderRadius: BorderRadius.circular(4),
+                              ),
+                              child: Text(
+                                l10n.anonymousUser, // ✅ Localized Tag
+                                style: TextStyle(
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.bold,
+                                  color: AppColors.textSecondary,
+                                ),
+                              ),
+                            ),
+                        ],
                       ),
                       Text(_post.categoryName,
-                          style: TextStyle(color: AppColors.textSecondary, fontSize: 12)),
+                          style: TextStyle(
+                              color: AppColors.textSecondary, fontSize: 12)),
                     ],
                   ),
                   const Spacer(),
-                  Text(DateFormatter.timeAgo(_post.createdAt),
-                      style: TextStyle(color: AppColors.textSecondary, fontSize: 12)),
+                  Text(DateFormatter.timeAgo(context,_post.createdAt),
+                      style: TextStyle(
+                          color: AppColors.textSecondary, fontSize: 12)),
                 ],
               ),
               const SizedBox(height: 15),
               Text(
                 _post.content,
-                style: const TextStyle(color: AppColors.textPrimary, fontSize: 16, height: 1.5),
+                style: const TextStyle(
+                    color: AppColors.textPrimary, fontSize: 16, height: 1.5),
               ),
             ],
           ),
         ),
-
         Container(
           width: double.infinity,
           padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 20),
           decoration: BoxDecoration(
-            border: Border.symmetric(horizontal: BorderSide(color: AppColors.border, width: 1)),
+            border: Border.symmetric(
+                horizontal: BorderSide(color: AppColors.border, width: 1)),
           ),
           child: Row(
             mainAxisAlignment: MainAxisAlignment.start,
@@ -265,8 +357,6 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
                 color: AppColors.textTertiary,
                 text: "${_comments.length}",
                 onTap: () {
-                  // Focus the comment box? Or just scroll down?
-                  // For now, let's focus the input.
                   _commentFocusNode.requestFocus();
                 },
               ),
@@ -274,8 +364,8 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
               _actionButton(
                 icon: Icons.share_outlined,
                 color: AppColors.textTertiary,
-                text: "Share",
-                onTap: () {},
+                text: l10n.shareAction, // ✅ "Share"
+                onTap: () => _sharePost(l10n),
               ),
             ],
           ),
@@ -284,48 +374,42 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
     );
   }
 
-  // ... _buildComment, _buildInputArea, _actionButton (unchanged) ...
-  // For completeness, I'll include them so you can copy-paste the whole file easily.
-
-  Widget _buildComment(Comment comment) {
+  Widget _buildEmptyState(AppLocalizations l10n) {
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
+      padding: const EdgeInsets.symmetric(vertical: 40, horizontal: 20),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          CircleAvatar(
-            radius: 16,
-            backgroundColor: AppColors.surface,
-            backgroundImage: comment.authorAvatar != null ? NetworkImage(comment.authorAvatar!) : null,
-            child: comment.authorAvatar == null
-                ? Text(comment.authorName[0], style: TextStyle(fontSize: 12, color: AppColors.textSecondary))
-                : null,
+          Icon(Icons.chat_bubble_outline, size: 48, color: AppColors.textSecondary.withOpacity(0.5)),
+          const SizedBox(height: 16),
+          Text(
+            l10n.noCommentsYet, // ✅ "No comments yet"
+            style: const TextStyle(color: AppColors.textPrimary, fontSize: 16, fontWeight: FontWeight.bold),
           ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text(comment.authorName,
-                        style: const TextStyle(color: AppColors.textPrimary, fontWeight: FontWeight.w600, fontSize: 13)),
-                    Text(DateFormatter.timeAgo(comment.createdAt),
-                        style: TextStyle(color: AppColors.textSecondary, fontSize: 11)),
-                  ],
-                ),
-                const SizedBox(height: 4),
-                Text(comment.content, style: TextStyle(color: Colors.grey.shade300, fontSize: 14)),
-              ],
+          const SizedBox(height: 8),
+          Text(
+            l10n.beFirstToComment, // ✅ "Be the first to share..."
+            style: TextStyle(color: AppColors.textSecondary, fontSize: 14),
+            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: 20),
+          OutlinedButton.icon(
+            onPressed: () {
+              _commentFocusNode.requestFocus();
+            },
+            icon: const Icon(Icons.edit, size: 18),
+            label: Text(l10n.writeCommentButton), // ✅ "Write a comment"
+            style: OutlinedButton.styleFrom(
+              foregroundColor: AppColors.primary,
+              side: const BorderSide(color: AppColors.primary),
             ),
-          ),
+          )
         ],
       ),
     );
   }
 
-  Widget _buildInputArea() {
+  Widget _buildInputArea(AppLocalizations l10n) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       decoration: BoxDecoration(
@@ -341,7 +425,7 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
                 child: TextField(
                   controller: _commentController,
                   focusNode: _commentFocusNode,
-                  decoration: const InputDecoration(hintText: "Add a comment..."),
+                  decoration: InputDecoration(hintText: l10n.addCommentHint), // ✅ "Add a comment..."
                   style: const TextStyle(fontSize: 14, color: AppColors.textPrimary),
                 ),
               ),
@@ -360,14 +444,20 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
     );
   }
 
-  Widget _actionButton({required IconData icon, required Color color, required String text, required VoidCallback onTap}) {
+  Widget _actionButton(
+      {required IconData icon,
+        required Color color,
+        required String text,
+        required VoidCallback onTap}) {
     return InkWell(
       onTap: onTap,
       child: Row(
         children: [
           Icon(icon, color: color, size: 20),
           const SizedBox(width: 6),
-          Text(text, style: TextStyle(color: color, fontWeight: FontWeight.w500, fontSize: 13)),
+          Text(text,
+              style: TextStyle(
+                  color: color, fontWeight: FontWeight.w500, fontSize: 13)),
         ],
       ),
     );

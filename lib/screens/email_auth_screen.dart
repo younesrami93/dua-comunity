@@ -1,4 +1,6 @@
+import 'package:dua_app/l10n/app_localizations.dart';
 import 'package:flutter/material.dart';
+// ✅ Import generated localizations
 import '../api/api_service.dart';
 import '../theme/app_colors.dart';
 import 'feed_screen.dart';
@@ -28,82 +30,102 @@ class _EmailAuthScreenState extends State<EmailAuthScreen> with SingleTickerProv
     final password = _passwordController.text.trim();
     final name = _nameController.text.trim();
 
+    // ✅ Access Localization
+    final l10n = AppLocalizations.of(context)!;
+
+    // 1. Basic Validation
     if (email.isEmpty || password.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Please fill in all fields")));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(l10n.fillAllFields)), // Localized Error
+      );
       return;
     }
 
-    // Check if Registering (Tab 1) and Name is empty
     if (_tabController.index == 1 && name.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Please enter your name")));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(l10n.enterNameError)), // Localized Error
+      );
       return;
     }
 
     setState(() => _isLoading = true);
 
-    bool success;
+    // 2. Variable to hold potential error message (null = success)
+    String? errorMessage;
+
     if (_tabController.index == 0) {
-      // Login
-      success = await ApiService().login(email, password);
+      // LOGIN: Returns String? (null if success, error message if failed)
+      errorMessage = await ApiService().login(email, password);
     } else {
-      // Register
-      success = await ApiService().register(name, email, password);
+      // REGISTER: Returns bool (true if success)
+      final success = await ApiService().register(name, email, password);
+      if (!success) {
+        errorMessage = l10n.registrationFailed; // Localized Error
+      }
     }
 
     setState(() => _isLoading = false);
 
-    if (success && mounted) {
-      // Go to Feed and remove all previous screens from back stack
+    // 3. Handle Result
+    if (errorMessage == null && mounted) {
+      // Success: Navigate to Feed
       Navigator.pushAndRemoveUntil(
         context,
         MaterialPageRoute(builder: (context) => const FeedScreen()),
             (route) => false,
       );
     } else if (mounted) {
+      // Failure: Show the error message
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Authentication Failed. Check your credentials.")),
+        SnackBar(
+          content: Text(errorMessage ?? l10n.authFailed), // Localized Fallback
+          backgroundColor: Colors.red,
+        ),
       );
     }
   }
 
   @override
   Widget build(BuildContext context) {
+    // ✅ Access Localization
+    final l10n = AppLocalizations.of(context)!;
+
     return Scaffold(
       appBar: AppBar(
-        title: const Text("Welcome"),
+        title: Text(l10n.welcomeTitle), // Localized Title
         bottom: TabBar(
-          controller:_tabController,
+          controller: _tabController,
           indicatorColor: AppColors.primary,
           labelColor: AppColors.primary,
           unselectedLabelColor: AppColors.textSecondary,
-          tabs: const [
-            Tab(text: "Log In"),
-            Tab(text: "Sign Up"),
+          tabs: [
+            Tab(text: l10n.loginTab),   // Localized Tab
+            Tab(text: l10n.signUpTab),  // Localized Tab
           ],
         ),
       ),
       body: TabBarView(
         controller: _tabController,
         children: [
-          _buildForm(isRegister: false),
-          _buildForm(isRegister: true),
+          _buildForm(isRegister: false, l10n: l10n),
+          _buildForm(isRegister: true, l10n: l10n),
         ],
       ),
     );
   }
 
-  Widget _buildForm({required bool isRegister}) {
+  Widget _buildForm({required bool isRegister, required AppLocalizations l10n}) {
     return Padding(
       padding: const EdgeInsets.all(24.0),
       child: Column(
         children: [
           if (isRegister) ...[
-            _buildInput(_nameController, "Full Name", Icons.person),
+            _buildInput(_nameController, l10n.fullNameHint, Icons.person), // Localized Hint
             const SizedBox(height: 16),
           ],
-          _buildInput(_emailController, "Email Address", Icons.email),
+          _buildInput(_emailController, l10n.emailHint, Icons.email), // Localized Hint
           const SizedBox(height: 16),
-          _buildInput(_passwordController, "Password", Icons.lock, isPassword: true),
+          _buildInput(_passwordController, l10n.passwordHint, Icons.lock, isPassword: true), // Localized Hint
 
           const SizedBox(height: 32),
 
@@ -118,7 +140,10 @@ class _EmailAuthScreenState extends State<EmailAuthScreen> with SingleTickerProv
               ),
               child: _isLoading
                   ? const CircularProgressIndicator(color: Colors.white)
-                  : Text(isRegister ? "Create Account" : "Log In", style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                  : Text(
+                isRegister ? l10n.createAccountButton : l10n.loginButton, // Localized Button
+                style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+              ),
             ),
           ),
         ],
@@ -134,7 +159,6 @@ class _EmailAuthScreenState extends State<EmailAuthScreen> with SingleTickerProv
       decoration: InputDecoration(
         prefixIcon: Icon(icon, color: AppColors.textSecondary),
         hintText: hint,
-        // Uses the Theme defaults we set earlier, but just to be sure:
         filled: true,
         fillColor: AppColors.surface,
         border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),

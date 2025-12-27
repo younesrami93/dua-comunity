@@ -1,7 +1,9 @@
+import 'package:dua_app/l10n/app_localizations.dart';
 import 'package:dua_app/screens/email_auth_screen.dart';
 import 'package:flutter/material.dart';
+// ✅ Import generated localizations
 import '../api/api_service.dart';
-import '../theme/app_colors.dart'; // Import Theme
+import '../theme/app_colors.dart'; // Import AppColors
 import 'feed_screen.dart';
 
 class LoginScreen extends StatefulWidget {
@@ -23,7 +25,7 @@ class _LoginScreenState extends State<LoginScreen> {
     setState(() => _isLoading = false);
 
     if (token != null && mounted) {
-      // Success! Navigate to Feed
+      // Success! Navigate to Feed and clear the back stack
       Navigator.pushReplacement(
         context,
         MaterialPageRoute(builder: (context) => const FeedScreen()),
@@ -31,8 +33,9 @@ class _LoginScreenState extends State<LoginScreen> {
     } else {
       // Show Error
       if (mounted) {
+        // ✅ Localized Error
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Login Failed. Please check your internet.')),
+          SnackBar(content: Text(AppLocalizations.of(context)!.loginFailedCheckInternet)),
         );
       }
     }
@@ -40,57 +43,52 @@ class _LoginScreenState extends State<LoginScreen> {
 
   // 2. Placeholder for Future Logins
   void _showComingSoon(String provider) {
+    if (!mounted) return;
+    // ✅ Localized Message with Parameter
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('$provider Login is coming soon!')),
+      SnackBar(content: Text(AppLocalizations.of(context)!.providerLoginComingSoon(provider))),
     );
   }
 
   @override
   Widget build(BuildContext context) {
+    // ✅ Access Localization
+    final l10n = AppLocalizations.of(context)!;
+
     return Scaffold(
       backgroundColor: AppColors.backgroundDark, // Theme Background
       body: SafeArea(
         child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 24.0),
+          padding: const EdgeInsets.symmetric(horizontal: 30.0),
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              // --- Logo / Branding ---
-              const Icon(
-                Icons.nightlight_round,
-                size: 80,
-                color: AppColors.primary, // Theme Primary Color
-              ),
+              // --- Logo Section ---
+              const Icon(Icons.mosque, size: 100, color: AppColors.primary), // Theme Primary
               const SizedBox(height: 20),
-              const Text(
-                "Dua Community",
+              Text(
+                l10n.appTitle, // ✅ "Dua Community" (or "Dua App" if you prefer)
                 textAlign: TextAlign.center,
-                style: TextStyle(
-                  fontSize: 28,
+                style: const TextStyle(
+                  fontSize: 32,
                   fontWeight: FontWeight.bold,
                   color: AppColors.textPrimary, // Theme White
                 ),
               ),
               const SizedBox(height: 10),
               Text(
-                "Share and discover powerful Duas.",
+                l10n.appTagline, // ✅ Localized Tagline
                 textAlign: TextAlign.center,
-                style: TextStyle(
-                  fontSize: 16,
-                  color: AppColors.textSecondary, // Theme Grey
-                ),
+                style: TextStyle(fontSize: 16, color: AppColors.textSecondary), // Theme Grey
               ),
-
               const SizedBox(height: 60),
 
-              // --- Social Buttons ---
-
-              // 1. Google (Preserved)
+              // --- Social Login Buttons ---
               OutlinedButton.icon(
                 onPressed: () => _showComingSoon("Google"),
-                icon: const Icon(Icons.g_mobiledata, size: 24),
-                label: const Text("Continue with Google"),
+                icon: const Icon(Icons.g_mobiledata, size: 28),
+                label: Text(l10n.continueWithGoogle), // ✅ Localized Button
                 style: OutlinedButton.styleFrom(
                   padding: const EdgeInsets.symmetric(vertical: 12),
                   foregroundColor: AppColors.textPrimary, // Theme White
@@ -98,12 +96,10 @@ class _LoginScreenState extends State<LoginScreen> {
                 ),
               ),
               const SizedBox(height: 15),
-
-              // 2. Facebook (Preserved - NOT Apple)
               OutlinedButton.icon(
                 onPressed: () => _showComingSoon("Facebook"),
-                icon: const Icon(Icons.facebook, size: 24),
-                label: const Text("Continue with Facebook"),
+                icon: const Icon(Icons.facebook, size: 28),
+                label: Text(l10n.continueWithFacebook), // ✅ Localized Button
                 style: OutlinedButton.styleFrom(
                   padding: const EdgeInsets.symmetric(vertical: 12),
                   foregroundColor: AppColors.textPrimary, // Theme White
@@ -111,17 +107,15 @@ class _LoginScreenState extends State<LoginScreen> {
                 ),
               ),
               const SizedBox(height: 15),
-
-              // 3. Email (Preserved)
               OutlinedButton.icon(
-                onPressed: () {
+                onPressed: (){
                   Navigator.push(
                     context,
                     MaterialPageRoute(builder: (context) => const EmailAuthScreen()),
                   );
                 },
                 icon: const Icon(Icons.email_outlined, size: 24),
-                label: const Text("Continue with Email"),
+                label: Text(l10n.continueWithEmail), // ✅ Localized Button
                 style: OutlinedButton.styleFrom(
                   padding: const EdgeInsets.symmetric(vertical: 12),
                   foregroundColor: AppColors.textPrimary, // Theme White
@@ -137,7 +131,7 @@ class _LoginScreenState extends State<LoginScreen> {
                   Expanded(child: Divider(color: AppColors.border)), // Theme Divider
                   Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 10),
-                    child: Text("OR", style: TextStyle(color: AppColors.textSecondary)),
+                    child: Text(l10n.orText, style: TextStyle(color: AppColors.textSecondary)), // ✅ "OR"
                   ),
                   Expanded(child: Divider(color: AppColors.border)),
                 ],
@@ -145,22 +139,22 @@ class _LoginScreenState extends State<LoginScreen> {
 
               const SizedBox(height: 40),
 
-              // --- Guest Login Button ---
+              // --- Guest Login Button (Active) ---
               _isLoading
                   ? const Center(child: CircularProgressIndicator(color: AppColors.primary))
                   : ElevatedButton(
                 onPressed: _handleGuestLogin,
                 style: ElevatedButton.styleFrom(
                   backgroundColor: AppColors.primary, // Theme Primary
-                  foregroundColor: Colors.white,
+                  foregroundColor: AppColors.textPrimary, // Theme White (Text)
                   padding: const EdgeInsets.symmetric(vertical: 15),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(30),
                   ),
                 ),
-                child: const Text(
-                  'Continue as Guest',
-                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                child: Text(
+                  l10n.continueAsGuest, // ✅ Localized Button
+                  style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
                 ),
               ),
             ],

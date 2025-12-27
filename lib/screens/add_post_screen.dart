@@ -1,4 +1,6 @@
+import 'package:dua_app/l10n/app_localizations.dart';
 import 'package:flutter/material.dart';
+// ✅ Import generated localizations
 import '../api/api_service.dart';
 import '../models/category.dart';
 
@@ -55,17 +57,21 @@ class _AddPostScreenState extends State<AddPostScreen> {
     if (success && mounted) {
       Navigator.pop(context, true); // Return "true" to refresh the feed
     } else if (mounted) {
+      // ✅ Localized Error Message
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Failed to post. Please try again.')),
+        SnackBar(content: Text(AppLocalizations.of(context)!.postFailedMessage)),
       );
     }
   }
 
   @override
   Widget build(BuildContext context) {
+    // ✅ Access Localization
+    final l10n = AppLocalizations.of(context)!;
+
     return Scaffold(
       appBar: AppBar(
-        title: const Text('New Post'),
+        title: Text(l10n.newPostTitle), // ✅ Localized Title
         actions: [
           IconButton(
             onPressed: _isSubmitting ? null : _submitPost,
@@ -84,14 +90,14 @@ class _AddPostScreenState extends State<AddPostScreen> {
             // Category Dropdown
             DropdownButtonFormField<Category>(
               value: _selectedCategory,
-              decoration: const InputDecoration(
-                labelText: 'Category',
-                border: OutlineInputBorder(),
+              decoration: InputDecoration(
+                labelText: l10n.categoryLabel, // ✅ Localized Label
+                border: const OutlineInputBorder(),
               ),
               items: _categories.map((Category category) {
                 return DropdownMenuItem<Category>(
                   value: category,
-                  child: Text(category.name), // Shows Emoji + Name
+                  child: Text(Category.getLocalizedName(context, category)), // Shows Emoji + Name (Data from API, usually no translation needed here)
                 );
               }).toList(),
               onChanged: (val) => setState(() => _selectedCategory = val),
@@ -102,16 +108,16 @@ class _AddPostScreenState extends State<AddPostScreen> {
             TextField(
               controller: _contentController,
               maxLines: 5,
-              decoration: const InputDecoration(
-                hintText: 'Type your Post here...',
-                border: OutlineInputBorder(),
+              decoration: InputDecoration(
+                hintText: l10n.postContentHint, // ✅ Localized Hint
+                border: const OutlineInputBorder(),
               ),
             ),
             const SizedBox(height: 10),
 
             // Anonymous Switch
             SwitchListTile(
-              title: const Text('Post Anonymously'),
+              title: Text(l10n.postAnonymously), // ✅ Localized Switch Title
               value: _isAnonymous,
               onChanged: (val) => setState(() => _isAnonymous = val),
             ),

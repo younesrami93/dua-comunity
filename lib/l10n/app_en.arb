@@ -1,0 +1,146 @@
+{
+    "appTitle": "Dua Community",
+    "welcome": "Welcome",
+    "languageLabel": "Language",
+    "settings": "Settings",
+    "accountBannedTitle": "Account Banned",
+    "accountBannedMessage": "Your account has been banned due to policy violations. You will be logged out.",
+    "ok": "OK",
+    "connectionError": "Connection error. Please check your internet.",
+    "loginFailed": "Login failed",
+    "newPostTitle": "New Post",
+    "postFailedMessage": "Failed to post. Please try again.",
+    "categoryLabel": "Category",
+    "postContentHint": "Type your Post here...",
+    "postAnonymously": "Post Anonymously",
+    "welcomeTitle": "Welcome",
+    "loginTab": "Log In",
+    "signUpTab": "Sign Up",
+    "fullNameHint": "Full Name",
+    "emailHint": "Email Address",
+    "passwordHint": "Password",
+    "loginButton": "Log In",
+    "createAccountButton": "Create Account",
+    "fillAllFields": "Please fill in all fields",
+    "enterNameError": "Please enter your name",
+    "registrationFailed": "Registration failed. Please check your details.",
+    "authFailed": "Authentication Failed",
+    "noPostsFound": "No Posts Found",
+    "noPostsCategory": "No posts for this category yet. Be the first to contribute!",
+    "noPostsGeneral": "The feed is empty. Share a Post with the community!",
+    "createPostButton": "Create Post",
+    "loginFailedCheckInternet": "Login Failed. Please check your internet.",
+    "providerLoginComingSoon": "{provider} Login is coming soon!",
+    "@providerLoginComingSoon": {
+        "placeholders": {
+            "provider": {
+                "type": "String"
+            }
+        }
+    },
+    "appTagline": "Share and discover beautiful Posts.",
+    "continueWithGoogle": "Continue with Google",
+    "continueWithFacebook": "Continue with Facebook",
+    "continueWithEmail": "Continue with Email",
+    "orText": "OR",
+    "continueAsGuest": "Continue as Guest",
+    "postTitle": "Post",
+    "sharePostText": "Shared via Dua Community",
+    "reportAction": "Report",
+    "shareAction": "Share",
+    "loadMoreComments": "Load more comments",
+    "anonymousUser": "Anonymous",
+    "noCommentsYet": "No comments yet",
+    "beFirstToComment": "Be the first to share your thoughts on this Post.",
+    "writeCommentButton": "Write a comment",
+    "addCommentHint": "Add a comment...",
+    "logoutTitle": "Logout",
+    "logoutConfirmation": "Are you sure you want to log out?",
+    "cancelButton": "Cancel",
+    "logoutButton": "Logout",
+    "myProfileTitle": "My Profile",
+    "profileTitle": "Profile",
+    "guestName": "Guest",
+    "guestAccountLabel": "Guest Account",
+    "postsLabel": "Posts",
+    "likesLabel": "Likes",
+    "savedLabel": "Saved",
+    "settingsLabel": "Settings",
+    "noPostsYetUser": "You haven't posted yet",
+    "noPostsYetOther": "No posts yet",
+    "settingsTitle": "Settings",
+    "rateUsLabel": "Rate Us",
+    "rateUsSubtitle": "Rate us on the Play Store",
+    "privacyPolicyLabel": "Privacy Policy",
+    "termsOfUseLabel": "Terms of Use",
+    "deleteAccountTitle": "Delete Account",
+    "deleteAccountConfirmation": "Are you sure you want to delete your account? This action cannot be undone and you will lose all your data.",
+    "deleteButton": "Delete",
+    "deleteAccountFailed": "Failed to delete account. Please try again.",
+    "timeAgoYears": "{count}y ago",
+    "@timeAgoYears": {
+        "placeholders": {
+            "count": {
+                "type": "int"
+            }
+        }
+    },
+    "timeAgoMonths": "{count}mo ago",
+    "@timeAgoMonths": {
+        "placeholders": {
+            "count": {
+                "type": "int"
+            }
+        }
+    },
+    "timeAgoDays": "{count}d ago",
+    "@timeAgoDays": {
+        "placeholders": {
+            "count": {
+                "type": "int"
+            }
+        }
+    },
+    "timeAgoHours": "{count}h ago",
+    "@timeAgoHours": {
+        "placeholders": {
+            "count": {
+                "type": "int"
+            }
+        }
+    },
+    "timeAgoMinutes": "{count}m ago",
+    "@timeAgoMinutes": {
+        "placeholders": {
+            "count": {
+                "type": "int"
+            }
+        }
+    },
+    "justNow": "Just now",
+    "allCategories": "All",
+    "reportTitle": "Report Content",
+    "selectReasonError": "Please select a reason",
+    "reportSubmittedMessage": "Report submitted. We will review it shortly.",
+    "reportFailedMessage": "Failed to submit report. Please try again.",
+    "whyReportingLabel": "Why are you reporting this?",
+    "selectReasonHint": "Select a reason",
+    "additionalDetailsHint": "Additional Details (Optional)",
+    "submitReportButton": "Submit Report",
+    "reasonSpam": "Spam",
+    "reasonHateSpeech": "Hate Speech",
+    "reasonHarassment": "Harassment",
+    "reasonFalseInfo": "False Information",
+    "reasonInappropriateContent": "Inappropriate Content",
+    "reasonOther": "Other",
+    "catGeneral": "🕋 General",
+    "catRamadan": "🌙 Ramadan",
+    "catHajjUmrah": "🕋 Hajj & Umrah",
+    "catHealth": "🏥 Health",
+    "catRizqWork": "💼 Rizq & Work",
+    "catMarriage": "❤️ Marriage",
+    "catFamily": "👨‍👩‍👧 Family",
+    "catHardship": "🌧 Hardship",
+    "catGuidance": "🧠 Guidance",
+    "catGratitude": "🤲 Gratitude"
+}
