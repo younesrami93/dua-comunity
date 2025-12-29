@@ -10,6 +10,7 @@ class Post {
   int commentsCount;
   int sharesCount;
   bool isLiked;
+  final String? language;
 
   Post({
     required this.id,
@@ -22,6 +23,7 @@ class Post {
     required this.authorId,
     required this.sharesCount,
     required this.is_anonymous,
+    required this.language,
     this.isLiked = false,
   });
 
@@ -42,6 +44,7 @@ class Post {
       createdAt: json['created_at'] ?? DateTime.now().toIso8601String(),
       isLiked: json['is_liked'] ?? false,
       commentsCount: json['comments_count'] ?? 0,
+      language: json['language'],
     );
   }
 }

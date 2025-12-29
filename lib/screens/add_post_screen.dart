@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 // ✅ Import generated localizations
 import '../api/api_service.dart';
 import '../models/category.dart';
+import '../theme/app_colors.dart'; // ✅ Import Colors
 
 class AddPostScreen extends StatefulWidget {
   const AddPostScreen({super.key});
@@ -59,7 +60,8 @@ class _AddPostScreenState extends State<AddPostScreen> {
     } else if (mounted) {
       // ✅ Localized Error Message
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(AppLocalizations.of(context)!.postFailedMessage)),
+        SnackBar(
+            content: Text(AppLocalizations.of(context)!.postFailedMessage)),
       );
     }
   }
@@ -69,20 +71,38 @@ class _AddPostScreenState extends State<AddPostScreen> {
     // ✅ Access Localization
     final l10n = AppLocalizations.of(context)!;
 
+    // ✅ THEME AWARENESS
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+
+    final textColor = isDark ? AppColors.textPrimary : AppColors.textPrimaryLight;
+    final subTextColor = isDark ? AppColors.textSecondary : AppColors.textSecondaryLight;
+    final backgroundColor = theme.scaffoldBackgroundColor;
+    final surfaceColor = isDark ? AppColors.surface : AppColors.surfaceLight;
+    final borderColor = isDark ? AppColors.border : AppColors.borderLight;
+
     return Scaffold(
+      backgroundColor: backgroundColor, // ✅ Dynamic Background
       appBar: AppBar(
-        title: Text(l10n.newPostTitle), // ✅ Localized Title
+        title: Text(l10n.newPostTitle,
+            style: TextStyle(color: textColor)), // ✅ Dynamic Title
+        iconTheme: IconThemeData(color: textColor), // ✅ Dynamic Back Button
         actions: [
           IconButton(
             onPressed: _isSubmitting ? null : _submitPost,
             icon: _isSubmitting
-                ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(color: Colors.white))
-                : const Icon(Icons.send),
+                ? SizedBox(
+                width: 20,
+                height: 20,
+                child: CircularProgressIndicator(
+                    color: textColor)) // ✅ Dynamic Spinner
+                : Icon(Icons.send, color: textColor), // ✅ Dynamic Icon
           )
         ],
       ),
       body: _isLoading
-          ? const Center(child: CircularProgressIndicator())
+          ? const Center(
+          child: CircularProgressIndicator(color: AppColors.primary))
           : Padding(
         padding: const EdgeInsets.all(20.0),
         child: Column(
@@ -90,14 +110,26 @@ class _AddPostScreenState extends State<AddPostScreen> {
             // Category Dropdown
             DropdownButtonFormField<Category>(
               value: _selectedCategory,
+              dropdownColor: surfaceColor, // ✅ Dynamic Dropdown Background
+              style: TextStyle(color: textColor), // ✅ Dynamic Text
               decoration: InputDecoration(
-                labelText: l10n.categoryLabel, // ✅ Localized Label
+                labelText: l10n.categoryLabel,
+                labelStyle: TextStyle(color: subTextColor), // ✅ Dynamic Label
+                enabledBorder: OutlineInputBorder(
+                  borderSide: BorderSide(color: borderColor), // ✅ Dynamic Border
+                ),
+                focusedBorder: const OutlineInputBorder(
+                  borderSide: BorderSide(color: AppColors.primary),
+                ),
                 border: const OutlineInputBorder(),
               ),
               items: _categories.map((Category category) {
                 return DropdownMenuItem<Category>(
                   value: category,
-                  child: Text(Category.getLocalizedName(context, category)), // Shows Emoji + Name (Data from API, usually no translation needed here)
+                  child: Text(
+                    Category.getLocalizedName(context, category),
+                    style: TextStyle(color: textColor), // ✅ Dynamic Item Text
+                  ),
                 );
               }).toList(),
               onChanged: (val) => setState(() => _selectedCategory = val),
@@ -108,8 +140,16 @@ class _AddPostScreenState extends State<AddPostScreen> {
             TextField(
               controller: _contentController,
               maxLines: 5,
+              style: TextStyle(color: textColor), // ✅ Dynamic Input Text
               decoration: InputDecoration(
-                hintText: l10n.postContentHint, // ✅ Localized Hint
+                hintText: l10n.postContentHint,
+                hintStyle: TextStyle(color: subTextColor), // ✅ Dynamic Hint
+                enabledBorder: OutlineInputBorder(
+                  borderSide: BorderSide(color: borderColor), // ✅ Dynamic Border
+                ),
+                focusedBorder: const OutlineInputBorder(
+                  borderSide: BorderSide(color: AppColors.primary),
+                ),
                 border: const OutlineInputBorder(),
               ),
             ),
@@ -117,7 +157,9 @@ class _AddPostScreenState extends State<AddPostScreen> {
 
             // Anonymous Switch
             SwitchListTile(
-              title: Text(l10n.postAnonymously), // ✅ Localized Switch Title
+              title: Text(l10n.postAnonymously,
+                  style: TextStyle(color: textColor)), // ✅ Dynamic Title
+              activeColor: AppColors.primary,
               value: _isAnonymous,
               onChanged: (val) => setState(() => _isAnonymous = val),
             ),

@@ -70,6 +70,14 @@ class _FeedScreenState extends State<FeedScreen> {
     // ✅ Access Localization
     final l10n = AppLocalizations.of(context)!;
 
+    // ✅ THEME AWARENESS
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+
+    // Dynamic Colors
+    final Color textColor = isDark ? AppColors.textPrimary : AppColors.textPrimaryLight;
+    final Color surfaceColor = isDark ? AppColors.surface : AppColors.surfaceLight;
+
     return Scaffold(
       appBar: AppBar(
         automaticallyImplyLeading: false,
@@ -84,7 +92,7 @@ class _FeedScreenState extends State<FeedScreen> {
                 // Avatar
                 CircleAvatar(
                   radius: 20,
-                  backgroundColor: AppColors.surface,
+                  backgroundColor: surfaceColor, // ✅ Dynamic Background
                   backgroundImage: _currentUser?.avatarUrl != null
                       ? NetworkImage(_currentUser!.avatarUrl!)
                       : null,
@@ -105,9 +113,10 @@ class _FeedScreenState extends State<FeedScreen> {
                 // App Name (Localized)
                 Text(
                   l10n.appTitle, // ✅ "Dua Community"
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 20,
                     fontWeight: FontWeight.bold,
+                    color: textColor, // ✅ Dynamic Text Color
                   ),
                 ),
               ],
@@ -117,7 +126,7 @@ class _FeedScreenState extends State<FeedScreen> {
         actions: [
           // Settings Button
           IconButton(
-            icon: const Icon(Icons.settings),
+            icon: Icon(Icons.settings, color: textColor), // ✅ Dynamic Icon Color
             onPressed: () {
               Navigator.push(
                 context,
@@ -145,7 +154,7 @@ class _FeedScreenState extends State<FeedScreen> {
             child: RefreshIndicator(
               onRefresh: _loadData,
               color: AppColors.primary,
-              backgroundColor: AppColors.surface,
+              backgroundColor: surfaceColor, // ✅ Dynamic Background for refresh
               child: _isLoading
                   ? const Center(
                 child: CircularProgressIndicator(
@@ -153,7 +162,7 @@ class _FeedScreenState extends State<FeedScreen> {
                 ),
               )
                   : _posts.isEmpty
-                  ? _buildEmptyState(l10n) // Pass localization
+                  ? _buildEmptyState(l10n, isDark) // ✅ Pass theme state
                   : ListView.separated(
                 itemCount: _posts.length,
                 separatorBuilder: (context, index) => const Divider(),
@@ -186,7 +195,11 @@ class _FeedScreenState extends State<FeedScreen> {
     );
   }
 
-  Widget _buildEmptyState(AppLocalizations l10n) {
+  Widget _buildEmptyState(AppLocalizations l10n, bool isDark) {
+    // Dynamic Colors for Empty State
+    final mainTextColor = isDark ? AppColors.textPrimary : AppColors.textPrimaryLight;
+    final subTextColor = isDark ? AppColors.textSecondary : AppColors.textSecondaryLight;
+
     return Center(
       child: SingleChildScrollView(
         physics: const AlwaysScrollableScrollPhysics(),
@@ -196,12 +209,12 @@ class _FeedScreenState extends State<FeedScreen> {
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               Icon(Icons.feed_outlined,
-                  size: 80, color: AppColors.textSecondary.withOpacity(0.5)),
+                  size: 80, color: subTextColor.withOpacity(0.5)), // ✅ Dynamic
               const SizedBox(height: 16),
               Text(
                 l10n.noPostsFound, // ✅ "No Posts Found"
-                style: const TextStyle(
-                    color: AppColors.textPrimary,
+                style: TextStyle(
+                    color: mainTextColor, // ✅ Dynamic
                     fontSize: 18,
                     fontWeight: FontWeight.bold),
               ),
@@ -211,7 +224,7 @@ class _FeedScreenState extends State<FeedScreen> {
                     ? l10n.noPostsCategory // ✅ "No posts for this category..."
                     : l10n.noPostsGeneral, // ✅ "The feed is empty..."
                 textAlign: TextAlign.center,
-                style: const TextStyle(color: AppColors.textSecondary, fontSize: 14),
+                style: TextStyle(color: subTextColor, fontSize: 14), // ✅ Dynamic
               ),
               const SizedBox(height: 24),
               OutlinedButton.icon(

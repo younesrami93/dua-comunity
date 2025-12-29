@@ -48,22 +48,27 @@ class _CategoryFilterBarState extends State<CategoryFilterBar> {
     if (_isLoading) {
       return const SizedBox(
         height: 50,
-        child: Center(child: SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.primary))),
+        child: Center(
+            child: SizedBox(
+                width: 20,
+                height: 20,
+                child: CircularProgressIndicator(
+                    strokeWidth: 2, color: AppColors.primary))),
       );
     }
 
-    // ✅ Access Localization
     final l10n = AppLocalizations.of(context)!;
+    final theme = Theme.of(context); // ✅ Theme Access
 
     // Add "All" option at the beginning with localized name
     final allCategories = [
-      Category(id: -1, name: l10n.allCategories, slug: "all"), // ✅ "All"
+      Category(id: -1, name: l10n.allCategories, slug: "all"),
       ..._categories
     ];
 
     return Container(
       height: 60,
-      color: AppColors.backgroundDark,
+      color: theme.scaffoldBackgroundColor, // ✅ Dynamic Background
       child: ListView.separated(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
         scrollDirection: Axis.horizontal,
@@ -71,10 +76,9 @@ class _CategoryFilterBarState extends State<CategoryFilterBar> {
         separatorBuilder: (context, index) => const SizedBox(width: 10),
         itemBuilder: (context, index) {
           final category = allCategories[index];
-          // Check if this category is selected.
-          // If selectedCategoryId is null, "All" (ID -1) should be selected.
-          final isSelected = (widget.selectedCategoryId == null && category.id == -1) ||
-              (widget.selectedCategoryId == category.id);
+          final isSelected =
+              (widget.selectedCategoryId == null && category.id == -1) ||
+                  (widget.selectedCategoryId == category.id);
 
           return _buildCategoryPill(category, isSelected);
         },
@@ -83,10 +87,17 @@ class _CategoryFilterBarState extends State<CategoryFilterBar> {
   }
 
   Widget _buildCategoryPill(Category category, bool isSelected) {
+    // ✅ Dynamic Colors
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
+    final unselectedBg = isDark ? AppColors.surface : AppColors.surfaceLight;
+    final unselectedBorder = isDark ? AppColors.border : AppColors.borderLight;
+    final unselectedText = isDark ? AppColors.textSecondary : AppColors.textSecondaryLight;
+
     return GestureDetector(
       onTap: () {
         if (category.id == -1) {
-          widget.onCategorySelected(null); // Select "All" -> null ID
+          widget.onCategorySelected(null);
         } else {
           widget.onCategorySelected(category.id);
         }
@@ -94,17 +105,17 @@ class _CategoryFilterBarState extends State<CategoryFilterBar> {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
         decoration: BoxDecoration(
-          color: isSelected ? AppColors.primary : AppColors.surface,
+          color: isSelected ? AppColors.primary : unselectedBg, // ✅ Dynamic
           borderRadius: BorderRadius.circular(20),
           border: Border.all(
-            color: isSelected ? AppColors.primary : AppColors.border,
+            color: isSelected ? AppColors.primary : unselectedBorder, // ✅ Dynamic
           ),
         ),
         child: Center(
           child: Text(
             Category.getLocalizedName(context, category),
             style: TextStyle(
-              color: isSelected ? Colors.white : AppColors.textSecondary,
+              color: isSelected ? Colors.white : unselectedText, // ✅ Dynamic
               fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
               fontSize: 14,
             ),

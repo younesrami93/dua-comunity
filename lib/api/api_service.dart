@@ -17,17 +17,59 @@ import '../models/category.dart';
 
 class ApiService {
   // ⚠️ REPLACE WITH YOUR ACTUAL API URL (Use HTTPS for production)
-  static const String baseUrl = "http://192.168.0.124:8000/api";
+  static const String baseUrl = "https://morocode.com/dua/public/api";
   static const String app_key = "my_super_secret_key_123";
 
   // Singleton pattern
   static final ApiService _instance = ApiService._internal();
+
   factory ApiService() => _instance;
+
   ApiService._internal();
+
+  AppUser? _currentUser;
+
+  AppUser? get currentUser => _currentUser;
 
   // ==========================================================
   // ✅ GLOBAL BANNED HANDLER & REQUEST HELPERS
   // ==========================================================
+
+  Future<void> _saveUserLocally(AppUser user) async {
+    final prefs = await SharedPreferences.getInstance();
+    _currentUser = user;
+    await prefs.setString('user_data', jsonEncode(user.toJson()));
+  }
+
+  Future<AppUser?> getStoredUser() async {
+    // 1. Check Memory (Fastest)
+    if (_currentUser != null) {
+      return _currentUser;
+    }
+
+    // 2. Check Disk (If app just restarted)
+    final prefs = await SharedPreferences.getInstance();
+    final String? data = prefs.getString('user_data');
+
+    print("Checking disk for user data ${data}");
+
+    if (data != null) {
+      try {
+        // Load into memory for next time
+        _currentUser = AppUser.fromJson(jsonDecode(data));
+        print("user is instantiated from prefs ${_currentUser?.username}");
+
+        return _currentUser;
+      } catch (e) {
+        print("Error parsing stored user: $e");
+        await prefs.remove('user_data'); // Corrupt data, clear it
+      }
+    } else {
+      print("user data is null, it was not save");
+    }
+
+    return null;
+  }
 
   Future<void> _handleResponseCheck(http.Response response) async {
     // Check for 403 Forbidden specifically
@@ -57,8 +99,14 @@ class ApiService {
             context: context,
             barrierDismissible: false, // User MUST click OK
             builder: (ctx) => AlertDialog(
-              title: Text(l10n?.accountBannedTitle ?? "Account Banned", style: const TextStyle(color: Colors.red)),
-              content: Text(l10n?.accountBannedMessage ?? "Your account has been banned due to policy violations. You will be logged out."),
+              title: Text(
+                l10n?.accountBannedTitle ?? "Account Banned",
+                style: const TextStyle(color: Colors.red),
+              ),
+              content: Text(
+                l10n?.accountBannedMessage ??
+                    "Your account has been banned due to policy violations. You will be logged out.",
+              ),
               actions: [
                 TextButton(
                   onPressed: () {
@@ -66,12 +114,17 @@ class ApiService {
                     // Redirect to Login and remove all history
                     Navigator.pushAndRemoveUntil(
                       context,
-                      MaterialPageRoute(builder: (context) => const LoginScreen()),
-                          (route) => false,
+                      MaterialPageRoute(
+                        builder: (context) => const LoginScreen(),
+                      ),
+                      (route) => false,
                     );
                   },
-                  child: Text(l10n?.ok ?? "OK", style: const TextStyle(fontWeight: FontWeight.bold)),
-                )
+                  child: Text(
+                    l10n?.ok ?? "OK",
+                    style: const TextStyle(fontWeight: FontWeight.bold),
+                  ),
+                ),
               ],
             ),
           );
@@ -87,10 +140,7 @@ class ApiService {
 
     final response = await http.get(
       Uri.parse('$baseUrl$endpoint'),
-      headers: {
-        'Authorization': 'Bearer $token',
-        'Accept': 'application/json',
-      },
+      headers: {'Authorization': 'Bearer $token', 'Accept': 'application/json'},
     );
 
     await _handleResponseCheck(response); // Global Ban Check
@@ -98,7 +148,10 @@ class ApiService {
   }
 
   // 2. Authenticated POST Wrapper
-  Future<http.Response> _post(String endpoint, Map<String, dynamic> body) async {
+  Future<http.Response> _post(
+    String endpoint,
+    Map<String, dynamic> body,
+  ) async {
     final prefs = await SharedPreferences.getInstance();
     final token = prefs.getString('auth_token');
 
@@ -152,6 +205,13 @@ class ApiService {
         final data = jsonDecode(response.body);
         String token = data['token'];
         await prefs.setString('auth_token', token);
+
+        if (data['user'] != null) {
+          await _saveUserLocally(AppUser.fromJson(data['user']));
+        } else {
+          print("user is null, cant save it");
+        }
+
         return token;
       }
     } catch (e) {
@@ -178,7 +238,10 @@ class ApiService {
   }
 
   // 3. Get Comments
-  Future<Map<String, dynamic>> getComments(int postId, {String? nextCursor}) async {
+  Future<Map<String, dynamic>> getComments(
+    int postId, {
+    String? nextCursor,
+  }) async {
     String url = '/posts/$postId/comments';
     if (nextCursor != null) url += '?cursor=$nextCursor';
 
@@ -228,7 +291,11 @@ class ApiService {
   }
 
   // 6. Create a new Post
-  Future<bool> createPost(String content, int categoryId, bool isAnonymous) async {
+  Future<bool> createPost(
+    String content,
+    int categoryId,
+    bool isAnonymous,
+  ) async {
     final response = await _post('/posts', {
       'content': content,
       'category_id': categoryId,
@@ -287,21 +354,23 @@ class ApiService {
   }
 
   // 11. Delete Account
-  Future<bool> deleteAccount() async {
+  Future<bool> deleteAccount(String password) async {
     final prefs = await SharedPreferences.getInstance();
     final token = prefs.getString('auth_token');
 
     try {
-      final response = await http.delete(
-        Uri.parse('$baseUrl/user'),
+      final response = await http.post(
+        Uri.parse('$baseUrl/auth/delete-account'),
         headers: {
           'Authorization': 'Bearer $token',
+          'Content-Type': 'application/json', // Required for body
           'Accept': 'application/json',
         },
+        body: jsonEncode({'password': password}),
       );
 
       await _handleResponseCheck(response);
-
+      print("delete account response ${response.body}");
       return response.statusCode == 200 || response.statusCode == 204;
     } catch (e) {
       print("Delete Account Error: $e");
@@ -311,14 +380,22 @@ class ApiService {
 
   // 12. Secure Logout
   Future<void> logout() async {
+    _currentUser = null;
     final prefs = await SharedPreferences.getInstance();
     final token = prefs.getString('auth_token');
+
+    await prefs.remove('auth_token');
+    await prefs.remove('user_data');
+
     if (token == null) return;
 
     try {
       await http.post(
         Uri.parse('$baseUrl/auth/logout'),
-        headers: {'Authorization': 'Bearer $token', 'Accept': 'application/json'},
+        headers: {
+          'Authorization': 'Bearer $token',
+          'Accept': 'application/json',
+        },
       );
     } catch (_) {}
   }
@@ -362,9 +439,19 @@ class ApiService {
 
       final data = jsonDecode(response.body);
 
+      print(response.body);
       if (response.statusCode == 200) {
         String token = data['token'];
         await prefs.setString('auth_token', token);
+
+        if (data['user'] != null) {
+          await _saveUserLocally(AppUser.fromJson(data['user']));
+        }else{
+          print("user is null, cant save it");
+        }
+        print("login success");
+
+
         return null; // ✅ Success
       } else {
         // Return the specific error from backend, or fallback to localized generic error
@@ -405,9 +492,15 @@ class ApiService {
         }),
       );
 
+      print("response body${response.body}");
       if (response.statusCode == 200 || response.statusCode == 201) {
         final data = jsonDecode(response.body);
         await prefs.setString('auth_token', data['token']);
+
+        if (data['user'] != null) {
+          await _saveUserLocally(AppUser.fromJson(data['user']));
+        }
+
         return true;
       }
       return false;
@@ -415,4 +508,81 @@ class ApiService {
       return false;
     }
   }
+
+  Future<String?> translateContent({
+    required int id,
+    required String type, // 'post' or 'comment'
+    required String targetLang,
+  }) async {
+    try {
+      print("translating ${id} , type ${type} , targetLang ${targetLang}");
+
+      final response = await _post('/translate', {
+        'id': id,
+        'type': type,
+        'target_lang': targetLang,
+      });
+
+      if (response.statusCode == 200) {
+        print("response code 200");
+        print(response);
+        print(response.body);
+        final data = jsonDecode(response.body);
+        print("response data ${data['translation']}");
+        return data['translation'];
+      }
+      print("response code ${response.statusCode}");
+      // print response as json
+      print(response.body);
+    } catch (e) {
+      print("Translation error: $e");
+    }
+    return null;
+  }
+
+
+
+  // 14. Delete Comment
+  Future<bool> deleteComment(int commentId) async {
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString('auth_token');
+
+    try {
+      final response = await http.delete(
+        Uri.parse('$baseUrl/comments/$commentId'), // Assumes standard REST route
+        headers: {
+          'Authorization': 'Bearer $token',
+          'Accept': 'application/json',
+        },
+      );
+
+      return response.statusCode == 200 || response.statusCode == 204;
+    } catch (e) {
+      print("Delete Comment Error: $e");
+      return false;
+    }
+  }
+
+
+  // 15. Delete Post
+  Future<bool> deletePost(int postId) async {
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString('auth_token');
+
+    try {
+      final response = await http.delete(
+        Uri.parse('$baseUrl/posts/$postId'),
+        headers: {
+          'Authorization': 'Bearer $token',
+          'Accept': 'application/json',
+        },
+      );
+
+      return response.statusCode == 200 || response.statusCode == 204;
+    } catch (e) {
+      print("Delete Post Error: $e");
+      return false;
+    }
+  }
+
 }

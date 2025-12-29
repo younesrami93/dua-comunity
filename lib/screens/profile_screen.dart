@@ -67,17 +67,17 @@ class _ProfileScreenState extends State<ProfileScreen> {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: Text(l10n.logoutTitle), // ✅ "Logout"
-        content: Text(l10n.logoutConfirmation), // ✅ "Are you sure..."
+        title: Text(l10n.logoutTitle),
+        content: Text(l10n.logoutConfirmation),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
-            child: Text(l10n.cancelButton), // ✅ "Cancel"
+            child: Text(l10n.cancelButton),
           ),
           TextButton(
             onPressed: () => Navigator.pop(context, true),
             style: TextButton.styleFrom(foregroundColor: Colors.red),
-            child: Text(l10n.logoutButton), // ✅ "Logout"
+            child: Text(l10n.logoutButton),
           ),
         ],
       ),
@@ -112,21 +112,34 @@ class _ProfileScreenState extends State<ProfileScreen> {
     // ✅ Access Localization
     final l10n = AppLocalizations.of(context)!;
 
+    // ✅ THEME AWARENESS
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+
+    final backgroundColor = theme.scaffoldBackgroundColor;
+    final textColor = isDark ? AppColors.textPrimary : AppColors.textPrimaryLight;
+    final subTextColor = isDark ? AppColors.textSecondary : AppColors.textSecondaryLight;
+
     if (_isLoading) {
-      return const Scaffold(
-        backgroundColor: AppColors.backgroundDark,
-        body: Center(child: CircularProgressIndicator(color: AppColors.primary)),
+      return Scaffold(
+        backgroundColor: backgroundColor, // ✅ Dynamic
+        body: const Center(
+            child: CircularProgressIndicator(color: AppColors.primary)),
       );
     }
 
     return Scaffold(
-      backgroundColor: AppColors.backgroundDark,
+      backgroundColor: backgroundColor, // ✅ Dynamic
       appBar: AppBar(
         // ✅ Localized Title Logic
-        title: Text(_isCurrentUser
-            ? l10n.myProfileTitle // "My Profile"
-            : (_user?.username ?? l10n.profileTitle)), // Username or "Profile"
+        title: Text(
+          _isCurrentUser
+              ? l10n.myProfileTitle
+              : (_user?.username ?? l10n.profileTitle),
+          style: TextStyle(color: textColor), // ✅ Dynamic
+        ),
         centerTitle: true,
+        iconTheme: IconThemeData(color: textColor), // ✅ Dynamic
         actions: _isCurrentUser
             ? [
           IconButton(
@@ -144,7 +157,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
           padding: const EdgeInsets.only(bottom: 40),
           children: [
             // 1. Profile Header Card
-            _buildProfileHeader(l10n), // Pass l10n
+            _buildProfileHeader(l10n, isDark), // ✅ Pass theme state
 
             const SizedBox(height: 20),
 
@@ -153,12 +166,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
               padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
               child: Row(
                 children: [
-                  const Icon(Icons.grid_on_rounded, color: AppColors.primary, size: 20),
+                  const Icon(Icons.grid_on_rounded,
+                      color: AppColors.primary, size: 20),
                   const SizedBox(width: 8),
                   Text(
-                    l10n.postsLabel, // ✅ "Posts"
+                    l10n.postsLabel,
                     style: TextStyle(
-                      color: AppColors.textPrimary.withOpacity(0.9),
+                      color: textColor.withOpacity(0.9), // ✅ Dynamic
                       fontWeight: FontWeight.bold,
                       fontSize: 16,
                     ),
@@ -166,7 +180,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   const Spacer(),
                   Text(
                     "${_posts.length}",
-                    style: TextStyle(color: AppColors.textSecondary, fontSize: 14),
+                    style: TextStyle(color: subTextColor, fontSize: 14), // ✅ Dynamic
                   ),
                 ],
               ),
@@ -174,13 +188,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
             // 3. Posts List
             if (_posts.isEmpty)
-              _buildEmptyState(l10n) // Pass l10n
+              _buildEmptyState(l10n, subTextColor) // ✅ Pass color
             else
               ListView.separated(
                 physics: const NeverScrollableScrollPhysics(),
                 shrinkWrap: true,
                 itemCount: _posts.length,
-                separatorBuilder: (context, index) => const SizedBox(height: 1), // Thin divider
+                separatorBuilder: (context, index) =>
+                const SizedBox(height: 1), // Thin divider
                 itemBuilder: (context, index) {
                   return PostItem(post: _posts[index]);
                 },
@@ -191,16 +206,22 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
-  Widget _buildProfileHeader(AppLocalizations l10n) {
+  Widget _buildProfileHeader(AppLocalizations l10n, bool isDark) {
+    // Dynamic Colors
+    final surfaceColor = isDark ? AppColors.surface : AppColors.surfaceLight;
+    final textColor = isDark ? AppColors.textPrimary : AppColors.textPrimaryLight;
+    final subTextColor = isDark ? AppColors.textSecondary : AppColors.textSecondaryLight;
+    final scaffoldBg = isDark ? AppColors.backgroundDark : AppColors.backgroundLight;
+
     return Container(
       margin: const EdgeInsets.all(16),
       padding: const EdgeInsets.symmetric(vertical: 24, horizontal: 16),
       decoration: BoxDecoration(
-        color: AppColors.surface,
+        color: surfaceColor, // ✅ Dynamic
         borderRadius: BorderRadius.circular(20),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.2),
+            color: Colors.black.withOpacity(0.1), // Softer shadow
             blurRadius: 10,
             offset: const Offset(0, 5),
           ),
@@ -217,8 +238,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
             ),
             child: CircleAvatar(
               radius: 45,
-              backgroundColor: AppColors.backgroundDark,
-              backgroundImage: _user?.avatarUrl != null ? NetworkImage(_user!.avatarUrl!) : null,
+              backgroundColor: scaffoldBg, // ✅ Match dynamic background
+              backgroundImage: _user?.avatarUrl != null
+                  ? NetworkImage(_user!.avatarUrl!)
+                  : null,
               child: _user?.avatarUrl == null
                   ? Text(
                 _user?.username[0].toUpperCase() ?? "G",
@@ -235,9 +258,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
           // Name
           Text(
-            _user?.username ?? l10n.guestName, // ✅ Localized Guest Fallback
-            style: const TextStyle(
-              color: AppColors.textPrimary,
+            _user?.username ?? l10n.guestName,
+            style: TextStyle(
+              color: textColor, // ✅ Dynamic
               fontSize: 24,
               fontWeight: FontWeight.bold,
             ),
@@ -249,45 +272,48 @@ class _ProfileScreenState extends State<ProfileScreen> {
               margin: const EdgeInsets.only(top: 8),
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
               decoration: BoxDecoration(
-                color: AppColors.backgroundDark,
+                color: scaffoldBg, // ✅ Dynamic
                 borderRadius: BorderRadius.circular(20),
-                border: Border.all(color: AppColors.textSecondary.withOpacity(0.3)),
+                border: Border.all(
+                    color: subTextColor.withOpacity(0.3)), // ✅ Dynamic
               ),
               child: Text(
-                l10n.guestAccountLabel, // ✅ "Guest Account"
-                style: TextStyle(color: AppColors.textSecondary, fontSize: 12),
+                l10n.guestAccountLabel,
+                style: TextStyle(color: subTextColor, fontSize: 12), // ✅ Dynamic
               ),
             ),
 
           const SizedBox(height: 24),
 
           // Stats
-          Row(
+         /* Row(
             mainAxisAlignment: MainAxisAlignment.spaceEvenly,
             children: [
-              _buildStatItem(l10n.postsLabel, "${_posts.length}"), // ✅ "Posts"
-              _buildStatItem(l10n.likesLabel, "0"), // ✅ "Likes"
-              _buildStatItem(l10n.savedLabel, "0"), // ✅ "Saved"
+              _buildStatItem(l10n.postsLabel, "${_posts.length}", textColor, subTextColor),
+              _buildStatItem(l10n.likesLabel, "0", textColor, subTextColor),
+              _buildStatItem(l10n.savedLabel, "0", textColor, subTextColor),
             ],
-          ),
+          ),*/
 
           // Action Buttons (Only for current user)
           if (_isCurrentUser) ...[
             const SizedBox(height: 24),
-            const Divider(color: Colors.white10),
+            Divider(color: isDark ? Colors.white10 : Colors.black12), // ✅ Dynamic Divider
             const SizedBox(height: 16),
             Row(
               children: [
                 Expanded(
                   child: OutlinedButton.icon(
                     onPressed: _goToSettings,
-                    icon: const Icon(Icons.settings, size: 18),
-                    label: Text(l10n.settingsLabel), // ✅ "Settings"
+                    icon: Icon(Icons.settings, size: 18, color: textColor),
+                    label: Text(l10n.settingsLabel),
                     style: OutlinedButton.styleFrom(
-                      foregroundColor: AppColors.textPrimary,
-                      side: BorderSide(color: AppColors.textSecondary.withOpacity(0.5)),
+                      foregroundColor: textColor, // ✅ Dynamic
+                      side: BorderSide(
+                          color: subTextColor.withOpacity(0.5)), // ✅ Dynamic
                       padding: const EdgeInsets.symmetric(vertical: 12),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(10)),
                     ),
                   ),
                 ),
@@ -296,12 +322,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   child: OutlinedButton.icon(
                     onPressed: _logout,
                     icon: const Icon(Icons.logout, size: 18),
-                    label: Text(l10n.logoutButton), // ✅ "Logout"
+                    label: Text(l10n.logoutButton),
                     style: OutlinedButton.styleFrom(
-                      foregroundColor: AppColors.like, // Red color
+                      foregroundColor: AppColors.like,
                       side: const BorderSide(color: AppColors.like),
                       padding: const EdgeInsets.symmetric(vertical: 12),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(10)),
                     ),
                   ),
                 ),
@@ -313,13 +340,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
-  Widget _buildStatItem(String label, String value) {
+  Widget _buildStatItem(String label, String value, Color textColor, Color subColor) {
     return Column(
       children: [
         Text(
           value,
-          style: const TextStyle(
-            color: AppColors.textPrimary,
+          style: TextStyle(
+            color: textColor, // ✅ Dynamic
             fontSize: 20,
             fontWeight: FontWeight.bold,
           ),
@@ -328,7 +355,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
         Text(
           label,
           style: TextStyle(
-            color: AppColors.textSecondary,
+            color: subColor, // ✅ Dynamic
             fontSize: 13,
           ),
         ),
@@ -336,16 +363,19 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
-  Widget _buildEmptyState(AppLocalizations l10n) {
+  Widget _buildEmptyState(AppLocalizations l10n, Color subColor) {
     return Padding(
       padding: const EdgeInsets.all(40.0),
       child: Column(
         children: [
-          Icon(Icons.feed_outlined, size: 48, color: AppColors.textSecondary.withOpacity(0.3)),
+          Icon(Icons.feed_outlined,
+              size: 48, color: subColor.withOpacity(0.3)), // ✅ Dynamic
           const SizedBox(height: 16),
           Text(
-            _isCurrentUser ? l10n.noPostsYetUser : l10n.noPostsYetOther, // ✅ Localized Empty States
-            style: TextStyle(color: AppColors.textSecondary, fontSize: 16),
+            _isCurrentUser
+                ? l10n.noPostsYetUser
+                : l10n.noPostsYetOther,
+            style: TextStyle(color: subColor, fontSize: 16), // ✅ Dynamic
           ),
         ],
       ),

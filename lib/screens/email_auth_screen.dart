@@ -53,6 +53,7 @@ class _EmailAuthScreenState extends State<EmailAuthScreen> with SingleTickerProv
     // 2. Variable to hold potential error message (null = success)
     String? errorMessage;
 
+    // ✅ LOGIC RESTORED
     if (_tabController.index == 0) {
       // LOGIN: Returns String? (null if success, error message if failed)
       errorMessage = await ApiService().login(email, password);
@@ -90,14 +91,30 @@ class _EmailAuthScreenState extends State<EmailAuthScreen> with SingleTickerProv
     // ✅ Access Localization
     final l10n = AppLocalizations.of(context)!;
 
+    // ✅ THEME AWARENESS
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+
+    final backgroundColor = theme.scaffoldBackgroundColor;
+    final textColor = isDark ? AppColors.textPrimary : AppColors.textPrimaryLight;
+    final subTextColor = isDark ? AppColors.textSecondary : AppColors.textSecondaryLight;
+    final surfaceColor = isDark ? AppColors.surface : AppColors.surfaceLight;
+    final borderColor = isDark ? AppColors.border : AppColors.borderLight;
+
     return Scaffold(
+      backgroundColor: backgroundColor, // ✅ Dynamic Background
       appBar: AppBar(
-        title: Text(l10n.welcomeTitle), // Localized Title
+        title: Text(l10n.welcomeTitle, style: TextStyle(color: textColor)), // ✅ Dynamic
+        iconTheme: IconThemeData(color: textColor), // ✅ Dynamic
         bottom: TabBar(
           controller: _tabController,
           indicatorColor: AppColors.primary,
           labelColor: AppColors.primary,
-          unselectedLabelColor: AppColors.textSecondary,
+          unselectedLabelColor: subTextColor, // ✅ Dynamic
+          dividerColor: borderColor, // ✅ Dynamic
+          onTap: (index) {
+            setState(() {}); // Rebuild to toggle UI fields
+          },
           tabs: [
             Tab(text: l10n.loginTab),   // Localized Tab
             Tab(text: l10n.signUpTab),  // Localized Tab
@@ -107,25 +124,31 @@ class _EmailAuthScreenState extends State<EmailAuthScreen> with SingleTickerProv
       body: TabBarView(
         controller: _tabController,
         children: [
-          _buildForm(isRegister: false, l10n: l10n),
-          _buildForm(isRegister: true, l10n: l10n),
+          _buildForm(isRegister: false, l10n: l10n, textColor: textColor, subTextColor: subTextColor, surfaceColor: surfaceColor),
+          _buildForm(isRegister: true, l10n: l10n, textColor: textColor, subTextColor: subTextColor, surfaceColor: surfaceColor),
         ],
       ),
     );
   }
 
-  Widget _buildForm({required bool isRegister, required AppLocalizations l10n}) {
+  Widget _buildForm({
+    required bool isRegister,
+    required AppLocalizations l10n,
+    required Color textColor,
+    required Color subTextColor,
+    required Color surfaceColor,
+  }) {
     return Padding(
       padding: const EdgeInsets.all(24.0),
       child: Column(
         children: [
           if (isRegister) ...[
-            _buildInput(_nameController, l10n.fullNameHint, Icons.person), // Localized Hint
+            _buildInput(_nameController, l10n.fullNameHint, Icons.person, textColor, subTextColor, surfaceColor),
             const SizedBox(height: 16),
           ],
-          _buildInput(_emailController, l10n.emailHint, Icons.email), // Localized Hint
+          _buildInput(_emailController, l10n.emailHint, Icons.email, textColor, subTextColor, surfaceColor),
           const SizedBox(height: 16),
-          _buildInput(_passwordController, l10n.passwordHint, Icons.lock, isPassword: true), // Localized Hint
+          _buildInput(_passwordController, l10n.passwordHint, Icons.lock, textColor, subTextColor, surfaceColor, isPassword: true),
 
           const SizedBox(height: 32),
 
@@ -136,12 +159,12 @@ class _EmailAuthScreenState extends State<EmailAuthScreen> with SingleTickerProv
               onPressed: _isLoading ? null : _submit,
               style: ElevatedButton.styleFrom(
                 backgroundColor: AppColors.primary,
-                foregroundColor: Colors.white,
+                foregroundColor: Colors.white, // Keep white on primary button
               ),
               child: _isLoading
                   ? const CircularProgressIndicator(color: Colors.white)
                   : Text(
-                isRegister ? l10n.createAccountButton : l10n.loginButton, // Localized Button
+                isRegister ? l10n.createAccountButton : l10n.loginButton,
                 style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
               ),
             ),
@@ -151,16 +174,25 @@ class _EmailAuthScreenState extends State<EmailAuthScreen> with SingleTickerProv
     );
   }
 
-  Widget _buildInput(TextEditingController controller, String hint, IconData icon, {bool isPassword = false}) {
+  Widget _buildInput(
+      TextEditingController controller,
+      String hint,
+      IconData icon,
+      Color textColor,
+      Color subTextColor,
+      Color surfaceColor,
+      {bool isPassword = false}
+      ) {
     return TextField(
       controller: controller,
       obscureText: isPassword,
-      style: const TextStyle(color: AppColors.textPrimary),
+      style: TextStyle(color: textColor), // ✅ Dynamic Input Text
       decoration: InputDecoration(
-        prefixIcon: Icon(icon, color: AppColors.textSecondary),
+        prefixIcon: Icon(icon, color: subTextColor), // ✅ Dynamic Icon
         hintText: hint,
+        hintStyle: TextStyle(color: subTextColor), // ✅ Dynamic Hint
         filled: true,
-        fillColor: AppColors.surface,
+        fillColor: surfaceColor, // ✅ Dynamic Fill
         border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
       ),
     );

@@ -105,5 +105,13 @@
   "catFamily": "👨‍👩‍👧 Keluarga",
   "catHardship": "🌧 Kesulitan",
   "catGuidance": "🧠 Petunjuk",
-  "catGratitude": "🤲 Syukur"
+  "catGratitude": "🤲 Syukur",
+  "seeTranslation": "Lihat terjemahan",
+  "seeOriginal": "Lihat aslinya",
+  "authScreenTitle": "Otentikasi",
+  "registerTab": "Daftar",
+  "nameHint": "Nama Lengkap",
+  "enterEmailPasswordError": "Harap masukkan email dan kata sandi",
+  "registrationSuccessLogin": "Pendaftaran berhasil! Sedang masuk...",
+  "authFailedMessage": "Otentikasi gagal. Periksa kredensial Anda."
 }

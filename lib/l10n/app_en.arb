@@ -142,5 +142,18 @@
     "catFamily": "👨‍👩‍👧 Family",
     "catHardship": "🌧 Hardship",
     "catGuidance": "🧠 Guidance",
-    "catGratitude": "🤲 Gratitude"
+    "catGratitude": "🤲 Gratitude",
+    "see_translation" :"see translation",
+    "see_original" : "see original",
+    "deleteAccountMessage": "Are you sure you want to delete your account ?",
+    "themeLabel": "Theme",
+    "themeAuto": "System Default",
+    "themeLight": "Light Mode",
+    "themeDark": "Dark Mode",
+    "authScreenTitle": "Authentication",
+    "registerTab": "Register",
+    "nameHint": "Full Name",
+    "enterEmailPasswordError": "Please enter both email and password",
+    "registrationSuccessLogin": "Registration successful! Logging you in...",
+    "authFailedMessage": "Authentication failed. Please check your credentials."
 }

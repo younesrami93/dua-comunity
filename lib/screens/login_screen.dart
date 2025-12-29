@@ -35,7 +35,9 @@ class _LoginScreenState extends State<LoginScreen> {
       if (mounted) {
         // ✅ Localized Error
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(AppLocalizations.of(context)!.loginFailedCheckInternet)),
+          SnackBar(
+              content: Text(
+                  AppLocalizations.of(context)!.loginFailedCheckInternet)),
         );
       }
     }
@@ -46,7 +48,9 @@ class _LoginScreenState extends State<LoginScreen> {
     if (!mounted) return;
     // ✅ Localized Message with Parameter
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(AppLocalizations.of(context)!.providerLoginComingSoon(provider))),
+      SnackBar(
+          content: Text(
+              AppLocalizations.of(context)!.providerLoginComingSoon(provider))),
     );
   }
 
@@ -55,8 +59,18 @@ class _LoginScreenState extends State<LoginScreen> {
     // ✅ Access Localization
     final l10n = AppLocalizations.of(context)!;
 
+    // ✅ THEME AWARENESS
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+
+    // Dynamic Colors
+    final backgroundColor = theme.scaffoldBackgroundColor;
+    final textColor = isDark ? AppColors.textPrimary : AppColors.textPrimaryLight;
+    final subTextColor = isDark ? AppColors.textSecondary : AppColors.textSecondaryLight;
+    final borderColor = isDark ? AppColors.border : AppColors.borderLight;
+
     return Scaffold(
-      backgroundColor: AppColors.backgroundDark, // Theme Background
+      backgroundColor: backgroundColor, // ✅ Dynamic Background
       body: SafeArea(
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 30.0),
@@ -65,22 +79,24 @@ class _LoginScreenState extends State<LoginScreen> {
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               // --- Logo Section ---
-              const Icon(Icons.mosque, size: 100, color: AppColors.primary), // Theme Primary
+              const Icon(Icons.mosque,
+                  size: 100, color: AppColors.primary), // Theme Primary
               const SizedBox(height: 20),
               Text(
-                l10n.appTitle, // ✅ "Dua Community" (or "Dua App" if you prefer)
+                l10n.appTitle,
                 textAlign: TextAlign.center,
-                style: const TextStyle(
+                style: TextStyle(
                   fontSize: 32,
                   fontWeight: FontWeight.bold,
-                  color: AppColors.textPrimary, // Theme White
+                  color: textColor, // ✅ Dynamic Text
                 ),
               ),
               const SizedBox(height: 10),
               Text(
-                l10n.appTagline, // ✅ Localized Tagline
+                l10n.appTagline,
                 textAlign: TextAlign.center,
-                style: TextStyle(fontSize: 16, color: AppColors.textSecondary), // Theme Grey
+                style: TextStyle(
+                    fontSize: 16, color: subTextColor), // ✅ Dynamic Text
               ),
               const SizedBox(height: 60),
 
@@ -88,38 +104,39 @@ class _LoginScreenState extends State<LoginScreen> {
               OutlinedButton.icon(
                 onPressed: () => _showComingSoon("Google"),
                 icon: const Icon(Icons.g_mobiledata, size: 28),
-                label: Text(l10n.continueWithGoogle), // ✅ Localized Button
+                label: Text(l10n.continueWithGoogle),
                 style: OutlinedButton.styleFrom(
                   padding: const EdgeInsets.symmetric(vertical: 12),
-                  foregroundColor: AppColors.textPrimary, // Theme White
-                  side: BorderSide(color: AppColors.border), // Theme Border
+                  foregroundColor: textColor, // ✅ Dynamic Text
+                  side: BorderSide(color: borderColor), // ✅ Dynamic Border
                 ),
               ),
               const SizedBox(height: 15),
               OutlinedButton.icon(
                 onPressed: () => _showComingSoon("Facebook"),
                 icon: const Icon(Icons.facebook, size: 28),
-                label: Text(l10n.continueWithFacebook), // ✅ Localized Button
+                label: Text(l10n.continueWithFacebook),
                 style: OutlinedButton.styleFrom(
                   padding: const EdgeInsets.symmetric(vertical: 12),
-                  foregroundColor: AppColors.textPrimary, // Theme White
-                  side: BorderSide(color: AppColors.border), // Theme Border
+                  foregroundColor: textColor, // ✅ Dynamic Text
+                  side: BorderSide(color: borderColor), // ✅ Dynamic Border
                 ),
               ),
               const SizedBox(height: 15),
               OutlinedButton.icon(
-                onPressed: (){
+                onPressed: () {
                   Navigator.push(
                     context,
-                    MaterialPageRoute(builder: (context) => const EmailAuthScreen()),
+                    MaterialPageRoute(
+                        builder: (context) => const EmailAuthScreen()),
                   );
                 },
                 icon: const Icon(Icons.email_outlined, size: 24),
-                label: Text(l10n.continueWithEmail), // ✅ Localized Button
+                label: Text(l10n.continueWithEmail),
                 style: OutlinedButton.styleFrom(
                   padding: const EdgeInsets.symmetric(vertical: 12),
-                  foregroundColor: AppColors.textPrimary, // Theme White
-                  side: BorderSide(color: AppColors.border), // Theme Border
+                  foregroundColor: textColor, // ✅ Dynamic Text
+                  side: BorderSide(color: borderColor), // ✅ Dynamic Border
                 ),
               ),
 
@@ -128,12 +145,16 @@ class _LoginScreenState extends State<LoginScreen> {
               // --- Divider ---
               Row(
                 children: [
-                  Expanded(child: Divider(color: AppColors.border)), // Theme Divider
+                  Expanded(
+                      child: Divider(color: borderColor)), // ✅ Dynamic Divider
                   Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 10),
-                    child: Text(l10n.orText, style: TextStyle(color: AppColors.textSecondary)), // ✅ "OR"
+                    child: Text(l10n.orText,
+                        style: TextStyle(
+                            color: subTextColor)), // ✅ Dynamic Text
                   ),
-                  Expanded(child: Divider(color: AppColors.border)),
+                  Expanded(
+                      child: Divider(color: borderColor)), // ✅ Dynamic Divider
                 ],
               ),
 
@@ -141,20 +162,22 @@ class _LoginScreenState extends State<LoginScreen> {
 
               // --- Guest Login Button (Active) ---
               _isLoading
-                  ? const Center(child: CircularProgressIndicator(color: AppColors.primary))
+                  ? const Center(
+                  child: CircularProgressIndicator(color: AppColors.primary))
                   : ElevatedButton(
                 onPressed: _handleGuestLogin,
                 style: ElevatedButton.styleFrom(
                   backgroundColor: AppColors.primary, // Theme Primary
-                  foregroundColor: AppColors.textPrimary, // Theme White (Text)
+                  foregroundColor: Colors.white, // ✅ Always White on Primary
                   padding: const EdgeInsets.symmetric(vertical: 15),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(30),
                   ),
                 ),
                 child: Text(
-                  l10n.continueAsGuest, // ✅ Localized Button
-                  style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                  l10n.continueAsGuest,
+                  style: const TextStyle(
+                      fontSize: 16, fontWeight: FontWeight.bold),
                 ),
               ),
             ],

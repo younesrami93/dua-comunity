@@ -3,12 +3,10 @@ import 'package:dua_app/theme/app_theme.dart';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
-// ✅ Correct import for generated localizations
 
 import 'screens/feed_screen.dart';
 import 'screens/login_screen.dart';
 
-// Global Key for Navigation (Required for your Banned User logic)
 final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
 
 void main() async {
@@ -16,16 +14,22 @@ void main() async {
 
   final prefs = await SharedPreferences.getInstance();
 
-  // 1. Check for existing Token
   final String? token = prefs.getString('auth_token');
-
-  // 2. Check for saved Language
   final String? languageCode = prefs.getString('language_code');
 
-  // 3. Decide where to start
+  // 1. Load Theme Preference (Default to System)
+  final String themePref = prefs.getString('theme_mode') ?? 'system';
+  ThemeMode initialThemeMode;
+  if (themePref == 'light') {
+    initialThemeMode = ThemeMode.light;
+  } else if (themePref == 'dark') {
+    initialThemeMode = ThemeMode.dark;
+  } else {
+    initialThemeMode = ThemeMode.system;
+  }
+
   Widget startScreen;
   if (token != null) {
-    print("Token found: $token");
     startScreen = const FeedScreen();
   } else {
     startScreen = const LoginScreen();
@@ -33,24 +37,33 @@ void main() async {
 
   runApp(MyApp(
     startScreen: startScreen,
-    initialLanguageCode: languageCode, // Pass the saved language
+    initialLanguageCode: languageCode,
+    initialThemeMode: initialThemeMode, // Pass loaded theme
   ));
 }
 
 class MyApp extends StatefulWidget {
   final Widget startScreen;
   final String? initialLanguageCode;
+  final ThemeMode initialThemeMode;
 
   const MyApp({
     super.key,
     required this.startScreen,
-    this.initialLanguageCode
+    this.initialLanguageCode,
+    required this.initialThemeMode,
   });
 
-  // ✅ Static method to allow changing language from anywhere (like Settings)
+  // Static method to change Locale
   static void setLocale(BuildContext context, Locale newLocale) {
     _MyAppState? state = context.findAncestorStateOfType<_MyAppState>();
     state?.setLocale(newLocale);
+  }
+
+  // ✅ Static method to change Theme
+  static void setTheme(BuildContext context, ThemeMode newMode) {
+    _MyAppState? state = context.findAncestorStateOfType<_MyAppState>();
+    state?.setTheme(newMode);
   }
 
   @override
@@ -59,57 +72,61 @@ class MyApp extends StatefulWidget {
 
 class _MyAppState extends State<MyApp> {
   Locale? _locale;
+  late ThemeMode _themeMode; // State variable for theme
 
   @override
   void initState() {
     super.initState();
-    // Set initial language if one was saved
     if (widget.initialLanguageCode != null) {
       _locale = Locale(widget.initialLanguageCode!);
     }
+    _themeMode = widget.initialThemeMode;
   }
 
-  // Helper to change language and save to storage
   Future<void> setLocale(Locale newLocale) async {
-    setState(() {
-      _locale = newLocale;
-    });
-
+    setState(() => _locale = newLocale);
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString('language_code', newLocale.languageCode);
+  }
+
+  // ✅ Helper to change theme and save to storage
+  Future<void> setTheme(ThemeMode newMode) async {
+    setState(() => _themeMode = newMode);
+
+    final prefs = await SharedPreferences.getInstance();
+    String modeStr = 'system';
+    if (newMode == ThemeMode.light) modeStr = 'light';
+    if (newMode == ThemeMode.dark) modeStr = 'dark';
+
+    await prefs.setString('theme_mode', modeStr);
   }
 
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      navigatorKey: navigatorKey, // ✅ Keep existing key
-
+      navigatorKey: navigatorKey,
       title: 'Dua Community',
       debugShowCheckedModeBanner: false,
 
-      // ✅ Theme
-      theme: AppTheme.darkTheme,
+      // ✅ Theme Configuration
+      themeMode: _themeMode,
+      theme: AppTheme.lightTheme, // Used when mode is Light or System (day)
+      darkTheme: AppTheme.darkTheme, // Used when mode is Dark or System (night)
 
-      // ✅ Localization Setup
-      locale: _locale, // Uses the state variable
-
-      // Use onGenerateTitle to translate the App Name
+      locale: _locale,
       onGenerateTitle: (context) => AppLocalizations.of(context)!.appTitle,
-
       localizationsDelegates: const [
-        AppLocalizations.delegate, // Generated delegate
+        AppLocalizations.delegate,
         GlobalMaterialLocalizations.delegate,
         GlobalWidgetsLocalizations.delegate,
         GlobalCupertinoLocalizations.delegate,
       ],
-
       supportedLocales: const [
-        Locale('en'), // English
-        Locale('ar'), // Arabic
-        Locale('fr'), // French
-        Locale('id'), // Indonesian
+        Locale('en'),
+        Locale('ar'),
+        Locale('fr'),
+        Locale('id'),
       ],
-
       home: widget.startScreen,
     );
   }

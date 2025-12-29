@@ -19,4 +19,14 @@ class AppUser {
       isGuest: json['is_guest'] == 1 || json['is_guest'] == true,
     );
   }
+
+
+  Map<String, dynamic> toJson() {
+    return {
+      'id': id,
+      'username': username,
+      'avatar_url': avatarUrl,
+      'is_guest': isGuest,
+    };
+  }
 }

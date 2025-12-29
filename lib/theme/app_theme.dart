@@ -2,6 +2,9 @@ import 'package:flutter/material.dart';
 import 'app_colors.dart';
 
 class AppTheme {
+  // ===========================================================================
+  // 🌑 DARK THEME
+  // ===========================================================================
   static ThemeData get darkTheme {
     return ThemeData(
       useMaterial3: true,
@@ -9,7 +12,7 @@ class AppTheme {
       scaffoldBackgroundColor: AppColors.backgroundDark,
       primaryColor: AppColors.primary,
 
-      // AppBar defaults
+      // AppBar
       appBarTheme: AppBarTheme(
         backgroundColor: AppColors.backgroundDark,
         elevation: 0,
@@ -24,30 +27,53 @@ class AppTheme {
         shape: Border(bottom: BorderSide(color: AppColors.border, width: 1)),
       ),
 
-      // Floating Action Button
-      floatingActionButtonTheme: const FloatingActionButtonThemeData(
-        backgroundColor: AppColors.primary,
-        foregroundColor: Colors.white,
-      ),
+      dividerTheme: DividerThemeData(color: AppColors.border, thickness: 1),
 
-      // Divider
-      dividerTheme: DividerThemeData(
-        color: AppColors.border,
-        thickness: 1,
-        space: 1,
-      ),
-
-      // ✅ FIXED: Removed 'const' and used '.withOpacity'
-      textSelectionTheme: TextSelectionThemeData(
-        cursorColor: AppColors.primary,
-        selectionColor: AppColors.primary.withOpacity(0.5),
-      ),
-
-      // Input Decoration (for comments)
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
         fillColor: AppColors.surface,
-        hintStyle: TextStyle(color: AppColors.textSecondary),
+        hintStyle: const TextStyle(color: AppColors.textSecondary),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(25),
+          borderSide: BorderSide.none,
+        ),
+        contentPadding: const EdgeInsets.symmetric(horizontal: 16),
+      ),
+    );
+  }
+
+  // ===========================================================================
+  // ☀️ LIGHT THEME
+  // ===========================================================================
+  static ThemeData get lightTheme {
+    return ThemeData(
+      useMaterial3: true,
+      brightness: Brightness.light,
+      scaffoldBackgroundColor: AppColors.backgroundLight,
+      primaryColor: AppColors.primary,
+
+      // AppBar
+      appBarTheme: AppBarTheme(
+        backgroundColor: AppColors.backgroundLight,
+        elevation: 0,
+        scrolledUnderElevation: 0,
+        centerTitle: false,
+        iconTheme: const IconThemeData(color: AppColors.textPrimaryLight),
+        titleTextStyle: const TextStyle(
+          color: AppColors.textPrimaryLight,
+          fontSize: 20,
+          fontWeight: FontWeight.bold,
+        ),
+        shape: Border(bottom: BorderSide(color: AppColors.borderLight, width: 1)),
+      ),
+
+      dividerTheme: DividerThemeData(color: AppColors.borderLight, thickness: 1),
+
+      // Input Decoration
+      inputDecorationTheme: InputDecorationTheme(
+        filled: true,
+        fillColor: AppColors.surfaceLight,
+        hintStyle: const TextStyle(color: AppColors.textSecondaryLight),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(25),
           borderSide: BorderSide.none,

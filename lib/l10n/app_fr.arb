@@ -105,5 +105,13 @@
     "catFamily": "👨‍👩‍👧 Famille",
     "catHardship": "🌧 Épreuves",
     "catGuidance": "🧠 Guidance",
-    "catGratitude": "🤲 Gratitude"
+    "catGratitude": "🤲 Gratitude",
+    "seeTranslation": "Voir la traduction",
+    "seeOriginal": "Voir l'original",
+    "authScreenTitle": "Authentification",
+    "registerTab": "S'inscrire",
+    "nameHint": "Nom complet",
+    "enterEmailPasswordError": "Veuillez entrer l'e-mail et le mot de passe",
+    "registrationSuccessLogin": "Inscription réussie ! Connexion en cours...",
+    "authFailedMessage": "L'authentification a échoué. Veuillez vérifier vos identifiants."
 }

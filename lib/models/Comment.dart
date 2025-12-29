@@ -8,6 +8,7 @@ class Comment {
   final String createdAt;
   final int authorId;
   final List<Comment> replies;
+  final String? language;
 
   Comment({
     required this.id,
@@ -17,6 +18,7 @@ class Comment {
     required this.authorId,
     required this.createdAt,
     this.replies = const [],
+    this.language,
   });
 
   factory Comment.fromJson(Map<String, dynamic> json) {
@@ -65,6 +67,7 @@ class Comment {
             ? json['author']['avatar_url']
             : null,
         replies: repliesList,
+        language: json['language'], // ✅ Add this
       );
     } catch (e) {
       if (kDebugMode) {

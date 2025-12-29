@@ -26,7 +26,7 @@ class _ReportModalState extends State<ReportModal> {
   Future<void> _submitReport(AppLocalizations l10n) async {
     if (_selectedReason == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(l10n.selectReasonError)), // ✅ "Please select a reason"
+        SnackBar(content: Text(l10n.selectReasonError)),
       );
       return;
     }
@@ -47,13 +47,13 @@ class _ReportModalState extends State<ReportModal> {
         Navigator.pop(context); // Close modal
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(l10n.reportSubmittedMessage), // ✅ "Report submitted..."
+            content: Text(l10n.reportSubmittedMessage),
             backgroundColor: Colors.green,
           ),
         );
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(l10n.reportFailedMessage)), // ✅ "Failed to submit..."
+          SnackBar(content: Text(l10n.reportFailedMessage)),
         );
       }
     }
@@ -61,10 +61,19 @@ class _ReportModalState extends State<ReportModal> {
 
   @override
   Widget build(BuildContext context) {
-    // ✅ Access Localization
     final l10n = AppLocalizations.of(context)!;
 
-    // ✅ Map: Key (Backend) -> Value (Localized Display)
+    // ✅ THEME AWARENESS
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+
+    final textColor = isDark ? AppColors.textPrimary : AppColors.textPrimaryLight;
+    final subTextColor = isDark ? AppColors.textSecondary : AppColors.textSecondaryLight;
+    final surfaceColor = isDark ? AppColors.surface : AppColors.surfaceLight;
+    final inputColor = isDark ? AppColors.backgroundDark : AppColors.backgroundLight; // Inputs use bg color
+    final borderColor = isDark ? AppColors.border : AppColors.borderLight;
+
+    // Map: Key (Backend) -> Value (Localized Display)
     final Map<String, String> reportReasons = {
       "Spam": l10n.reasonSpam,
       "Hate Speech": l10n.reasonHateSpeech,
@@ -92,41 +101,41 @@ class _ReportModalState extends State<ReportModal> {
             ),
           ),
           Text(
-            l10n.reportTitle, // ✅ "Report Content"
-            style: const TextStyle(
+            l10n.reportTitle,
+            style: TextStyle(
               fontSize: 20,
               fontWeight: FontWeight.bold,
-              color: AppColors.textPrimary,
+              color: textColor, // ✅ Dynamic
             ),
           ),
           const SizedBox(height: 20),
 
           // Reason Dropdown
           Text(
-            l10n.whyReportingLabel, // ✅ "Why are you reporting this?"
-            style: TextStyle(color: AppColors.textSecondary, fontSize: 14),
+            l10n.whyReportingLabel,
+            style: TextStyle(color: subTextColor, fontSize: 14), // ✅ Dynamic
           ),
           const SizedBox(height: 10),
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 12),
             decoration: BoxDecoration(
-              color: AppColors.backgroundDark,
+              color: inputColor, // ✅ Dynamic
               borderRadius: BorderRadius.circular(8),
-              border: Border.all(color: AppColors.border),
+              border: Border.all(color: borderColor), // ✅ Dynamic
             ),
             child: DropdownButtonHideUnderline(
               child: DropdownButton<String>(
                 value: _selectedReason,
-                hint: Text(l10n.selectReasonHint, style: TextStyle(color: AppColors.textSecondary)), // ✅ "Select a reason"
+                hint: Text(l10n.selectReasonHint, style: TextStyle(color: subTextColor)), // ✅ Dynamic
                 isExpanded: true,
-                dropdownColor: AppColors.surface,
+                dropdownColor: surfaceColor, // ✅ Dynamic
                 icon: const Icon(Icons.arrow_drop_down, color: AppColors.primary),
                 items: reportReasons.entries.map((entry) {
                   return DropdownMenuItem<String>(
-                    value: entry.key, // Store English Key (e.g., "Spam")
+                    value: entry.key,
                     child: Text(
-                      entry.value,    // Show Localized Value (e.g., "سبام")
-                      style: const TextStyle(color: AppColors.textPrimary),
+                      entry.value,
+                      style: TextStyle(color: textColor), // ✅ Dynamic
                     ),
                   );
                 }).toList(),
@@ -143,20 +152,20 @@ class _ReportModalState extends State<ReportModal> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  l10n.additionalDetailsHint, // ✅ "Additional Details (Optional)"
-                  style: TextStyle(color: AppColors.textSecondary, fontSize: 14),
+                  l10n.additionalDetailsHint,
+                  style: TextStyle(color: subTextColor, fontSize: 14), // ✅ Dynamic
                 ),
                 const SizedBox(height: 10),
                 Expanded(
                   child: TextField(
                     controller: _detailsController,
                     maxLines: 5,
-                    style: const TextStyle(color: AppColors.textPrimary),
+                    style: TextStyle(color: textColor), // ✅ Dynamic
                     decoration: InputDecoration(
                       hintText: l10n.additionalDetailsHint,
-                      hintStyle: TextStyle(color: AppColors.textSecondary.withOpacity(0.5)),
+                      hintStyle: TextStyle(color: subTextColor.withOpacity(0.5)), // ✅ Dynamic
                       filled: true,
-                      fillColor: AppColors.backgroundDark,
+                      fillColor: inputColor, // ✅ Dynamic
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(8),
                         borderSide: BorderSide.none,
@@ -174,7 +183,7 @@ class _ReportModalState extends State<ReportModal> {
             width: double.infinity,
             height: 50,
             child: ElevatedButton(
-              onPressed: _isSubmitting ? null : () => _submitReport(l10n), // Pass l10n
+              onPressed: _isSubmitting ? null : () => _submitReport(l10n),
               style: ElevatedButton.styleFrom(
                 backgroundColor: AppColors.primary,
                 shape: RoundedRectangleBorder(
@@ -183,7 +192,7 @@ class _ReportModalState extends State<ReportModal> {
               ),
               child: _isSubmitting
                   ? const CircularProgressIndicator(color: Colors.white)
-                  : Text(l10n.submitReportButton, // ✅ "Submit Report"
+                  : Text(l10n.submitReportButton,
                   style: const TextStyle(fontSize: 16, color: Colors.white)),
             ),
           ),

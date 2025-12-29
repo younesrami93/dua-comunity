@@ -2,6 +2,7 @@ import 'package:dua_app/l10n/app_localizations.dart';
 import 'package:dua_app/screens/profile_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:share_plus/share_plus.dart';
+
 // ✅ Import generated localizations
 import '../models/post.dart';
 import '../utils/date_utils.dart';
@@ -23,11 +24,39 @@ class _PostItemState extends State<PostItem> {
   late Post _post;
   int? _currentUserId; // ✅ Store current user ID
 
+  String? _translatedText;
+  bool _isTranslating = false;
+
   @override
   void initState() {
     super.initState();
     _post = widget.post;
     _fetchCurrentUserId(); // ✅ Fetch ID
+  }
+
+  Future<void> _handleTranslate() async {
+    if (_translatedText != null) {
+      setState(() => _translatedText = null); // Toggle off
+      return;
+    }
+
+    setState(() => _isTranslating = true);
+
+    // Get current locale
+    final String currentLang = Localizations.localeOf(context).languageCode;
+
+    final result = await ApiService().translateContent(
+      id: _post.id,
+      type: 'post',
+      targetLang: currentLang,
+    );
+
+    if (mounted) {
+      setState(() {
+        _translatedText = result;
+        _isTranslating = false;
+      });
+    }
   }
 
   @override
@@ -55,7 +84,8 @@ class _PostItemState extends State<PostItem> {
   void _sharePost() {
     // Access localization using the current context
     final l10n = AppLocalizations.of(context)!;
-    final String text = "${_post.content}\n\n${l10n.sharePostText}"; // "Shared via Dua Community"
+    final String text =
+        "${_post.content}\n\n${l10n.sharePostText}"; // "Shared via Dua Community"
     Share.share(text);
   }
 
@@ -76,8 +106,21 @@ class _PostItemState extends State<PostItem> {
     // ✅ Access Localization
     final l10n = AppLocalizations.of(context)!;
 
-    // ✅ Logic: Is this my post?
-    final bool isMine = _currentUserId != null && _currentUserId == _post.authorId;
+    // ✅ THEME AWARENESS
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+
+    // Dynamic Colors
+    final Color textColor = isDark ? AppColors.textPrimary : AppColors.textPrimaryLight;
+    final Color subTextColor = isDark ? AppColors.textSecondary : AppColors.textSecondaryLight;
+    final Color surfaceColor = isDark ? AppColors.surface : AppColors.surfaceLight;
+    final Color backgroundColor = theme.scaffoldBackgroundColor;
+
+    final String currentLang = Localizations.localeOf(context).languageCode;
+    bool showTranslation = widget.post.language != null && widget.post.language != currentLang;
+
+    final bool isMine = widget.post.authorId == ApiService().currentUser?.id;
+    if (isMine) showTranslation = false;
 
     // Check if the post is anonymous
     final bool isAnonymous = _post.is_anonymous;
@@ -86,7 +129,9 @@ class _PostItemState extends State<PostItem> {
     final bool showRealIdentity = !isAnonymous || isMine;
 
     // Localized "Anonymous" fallback
-    final String displayName = showRealIdentity ? _post.authorName : l10n.anonymousUser;
+    final String displayName = showRealIdentity
+        ? _post.authorName
+        : l10n.anonymousUser;
 
     return GestureDetector(
       onTap: () {
@@ -101,7 +146,7 @@ class _PostItemState extends State<PostItem> {
         });
       },
       child: Container(
-        color: AppColors.backgroundDark,
+        color: backgroundColor, // ✅ Dynamic Background
         padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 12.0),
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -112,10 +157,14 @@ class _PostItemState extends State<PostItem> {
               onTap: showRealIdentity ? () => _openProfile(context) : null,
               child: CircleAvatar(
                 radius: 20,
-                backgroundColor: showRealIdentity ? AppColors.surface : Colors.grey,
+                backgroundColor: showRealIdentity
+                    ? surfaceColor // ✅ Dynamic Surface
+                    : Colors.grey,
                 child: showRealIdentity
                     ? Text(
-                  displayName.isNotEmpty ? displayName[0].toUpperCase() : '?',
+                  displayName.isNotEmpty
+                      ? displayName[0].toUpperCase()
+                      : '?',
                   style: const TextStyle(
                     color: AppColors.accent,
                     fontWeight: FontWeight.bold,
@@ -142,11 +191,13 @@ class _PostItemState extends State<PostItem> {
                             // ✅ Name
                             Flexible(
                               child: GestureDetector(
-                                onTap: showRealIdentity ? () => _openProfile(context) : null,
+                                onTap: showRealIdentity
+                                    ? () => _openProfile(context)
+                                    : null,
                                 child: Text(
                                   displayName,
-                                  style: const TextStyle(
-                                    color: AppColors.textPrimary,
+                                  style: TextStyle(
+                                    color: textColor, // ✅ Dynamic Text
                                     fontWeight: FontWeight.bold,
                                     fontSize: 15,
                                   ),
@@ -159,9 +210,12 @@ class _PostItemState extends State<PostItem> {
                             if (isMine && isAnonymous)
                               Container(
                                 margin: const EdgeInsets.only(left: 8),
-                                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 6,
+                                  vertical: 2,
+                                ),
                                 decoration: BoxDecoration(
-                                  color: AppColors.textSecondary.withOpacity(0.2),
+                                  color: subTextColor.withOpacity(0.2), // ✅ Dynamic
                                   borderRadius: BorderRadius.circular(4),
                                 ),
                                 child: Text(
@@ -169,7 +223,7 @@ class _PostItemState extends State<PostItem> {
                                   style: TextStyle(
                                     fontSize: 10,
                                     fontWeight: FontWeight.bold,
-                                    color: AppColors.textSecondary,
+                                    color: subTextColor, // ✅ Dynamic
                                   ),
                                 ),
                               ),
@@ -183,7 +237,7 @@ class _PostItemState extends State<PostItem> {
                         // ✅ Updated DateFormatter to use context
                         DateFormatter.timeAgo(context, _post.createdAt),
                         style: TextStyle(
-                          color: AppColors.textSecondary,
+                          color: subTextColor, // ✅ Dynamic
                           fontSize: 12,
                         ),
                       ),
@@ -194,7 +248,7 @@ class _PostItemState extends State<PostItem> {
                   Text(
                     _post.categoryName,
                     style: TextStyle(
-                      color: AppColors.textSecondary,
+                      color: subTextColor, // ✅ Dynamic
                       fontSize: 13,
                     ),
                   ),
@@ -203,15 +257,46 @@ class _PostItemState extends State<PostItem> {
 
                   // 3. Content
                   Text(
-                    _post.content,
-                    style: const TextStyle(
-                      color: AppColors.textPrimary,
+                    _translatedText == null ? _post.content : _translatedText!,
+                    style: TextStyle(
+                      color: textColor, // ✅ Dynamic
                       fontSize: 15,
                       height: 1.4,
                     ),
                     maxLines: 6,
                     overflow: TextOverflow.ellipsis,
                   ),
+
+                  if (showTranslation)
+                    if (_isTranslating)
+                      const Padding(
+                        padding: EdgeInsets.only(top: 8.0),
+                        child: SizedBox(
+                          height: 15,
+                          width: 15,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: AppColors.accent,
+                          ),
+                        ),
+                      )
+                    else
+                      GestureDetector(
+                        onTap: _handleTranslate,
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(vertical: 8.0),
+                          child: Text(
+                            _translatedText == null
+                                ? l10n.see_translation
+                                : l10n.see_original,
+                            style: TextStyle(
+                              color: subTextColor, // ✅ Dynamic
+                              fontSize: 12,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ),
+                      ),
 
                   const SizedBox(height: 10),
 
@@ -225,7 +310,7 @@ class _PostItemState extends State<PostItem> {
                             : Icons.favorite_border,
                         color: _post.isLiked
                             ? AppColors.like
-                            : AppColors.textSecondary,
+                            : subTextColor, // ✅ Dynamic
                         label: '${_post.likesCount}',
                         onTap: () async {
                           setState(() {
@@ -242,7 +327,7 @@ class _PostItemState extends State<PostItem> {
 
                       _actionButton(
                         icon: Icons.chat_bubble_outline,
-                        color: AppColors.textSecondary,
+                        color: subTextColor, // ✅ Dynamic
                         label: '${_post.commentsCount}',
                         onTap: () {
                           Navigator.push(
@@ -259,10 +344,11 @@ class _PostItemState extends State<PostItem> {
 
                       _actionButton(
                         icon: Icons.share_outlined,
-                        color: AppColors.textSecondary,
+                        color: subTextColor, // ✅ Dynamic
                         label: '',
                         onTap: _sharePost, // ✅ Share button works
                       ),
+
                     ],
                   ),
                 ],
