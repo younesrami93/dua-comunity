@@ -4,6 +4,7 @@ class Post {
   final String authorName;
   final String categoryName;
   final String createdAt;
+  final String? authorAvatar;
   final int authorId;
   int likesCount;
   bool is_anonymous;
@@ -11,6 +12,10 @@ class Post {
   int sharesCount;
   bool isLiked;
   final String? language;
+
+
+  final String status;      // e.g., 'published', 'banned'
+  final String? safetyLabel; // e.g., 'harassment', 'sexual'
 
   Post({
     required this.id,
@@ -24,6 +29,9 @@ class Post {
     required this.sharesCount,
     required this.is_anonymous,
     required this.language,
+    this.authorAvatar,
+    required this.status,
+    this.safetyLabel,
     this.isLiked = false,
   });
 
@@ -38,6 +46,7 @@ class Post {
           ? json['category']['name']
           : 'General',
       likesCount: json['likes_count'] ?? 0,
+      authorAvatar: json['author'] != null ? json['author']['avatar_url'] : null,
       is_anonymous: json['is_anonymous'] ?? false,
       authorId: json['author'] != null ? json['author']['id'] : 0,
       sharesCount: json['shares_count'] ?? 0,
@@ -45,6 +54,9 @@ class Post {
       isLiked: json['is_liked'] ?? false,
       commentsCount: json['comments_count'] ?? 0,
       language: json['language'],
+      // ✅ Parse Status & Label
+      status: json['status'] ?? 'published',
+      safetyLabel: json['safety_label'],
     );
   }
 }

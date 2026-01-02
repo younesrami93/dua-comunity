@@ -5,10 +5,11 @@ import 'package:dua_app/main.dart'; // Ensure this imports your global navigator
 import 'package:dua_app/screens/login_screen.dart';
 import 'package:flutter/foundation.dart' hide Category;
 import 'package:flutter/material.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:device_info_plus/device_info_plus.dart';
-// ✅ Import generated localizations
+import 'package:google_sign_in/google_sign_in.dart';
 
 import '../models/AppUser.dart';
 import '../models/Comment.dart';
@@ -17,8 +18,7 @@ import '../models/category.dart';
 
 class ApiService {
   // ⚠️ REPLACE WITH YOUR ACTUAL API URL (Use HTTPS for production)
-  static const String baseUrl = "https://morocode.com/dua/public/api";
-  static const String app_key = "my_super_secret_key_123";
+  static const String baseUrl = "https://duarequests.app/api";
 
   // Singleton pattern
   static final ApiService _instance = ApiService._internal();
@@ -196,7 +196,7 @@ class ApiService {
         headers: {
           'Content-Type': 'application/json',
           'Accept': 'application/json',
-          'X-App-Key': app_key,
+          'X-App-Key': dotenv.env['APP_KEY'] ?? '',
         },
         body: jsonEncode({'device_uuid': guestUuid}),
       );
@@ -220,18 +220,41 @@ class ApiService {
     return null;
   }
 
-  // 2. Fetch Feed
-  Future<List<Post>> getFeed({int? userId, int? categoryId}) async {
+  // 2. Fetch Feedapi_service
+  Future<Map<String, dynamic>> getFeed({
+    int? userId,
+    int? categoryId,
+    String? cursor, // ✅ Accept cursor instead of page
+  }) async {
     String url = '/posts?';
+    if (cursor != null) url += 'cursor=$cursor&'; // ✅ Send cursor to backend
     if (userId != null) url += 'app_user_id=$userId&';
     if (categoryId != null) url += 'category_id=$categoryId&';
+
+    print(url);
 
     final response = await _get(url);
 
     if (response.statusCode == 200) {
       final json = jsonDecode(response.body);
       final List data = json['data'];
-      return data.map((e) => Post.fromJson(e)).toList();
+
+      // ✅ Extract the Next Cursor safely
+      String? nextCursor;
+      if (json['next_cursor'] != null) {
+        nextCursor = json['next_cursor'];
+      } else if (json['meta'] != null && json['meta']['next_cursor'] != null) {
+        nextCursor = json['meta']['next_cursor'];
+      } else if (json['next_page_url'] != null) {
+        // Fallback: Extract from URL if needed
+        final uri = Uri.parse(json['next_page_url']);
+        nextCursor = uri.queryParameters['cursor'];
+      }
+
+      return {
+        'posts': data.map((e) => Post.fromJson(e)).toList(),
+        'next_cursor': nextCursor, // ✅ Return it
+      };
     } else {
       throw Exception('Failed to load feed');
     }
@@ -307,6 +330,8 @@ class ApiService {
   // 7. Toggle Like
   Future<Map<String, dynamic>?> toggleLike(int postId) async {
     final response = await _post('/posts/$postId/like', {});
+
+    print(response.body);
 
     if (response.statusCode == 200) {
       return jsonDecode(response.body);
@@ -390,6 +415,15 @@ class ApiService {
     if (token == null) return;
 
     try {
+      final googleSignIn = GoogleSignIn();
+      if (await googleSignIn.isSignedIn()) {
+        await googleSignIn.signOut();
+      }
+    } catch (e) {
+      print("Error signing out of Google: $e");
+    }
+
+    try {
       await http.post(
         Uri.parse('$baseUrl/auth/logout'),
         headers: {
@@ -427,7 +461,7 @@ class ApiService {
         headers: {
           'Content-Type': 'application/json',
           'Accept': 'application/json',
-          'X-App-Key': app_key,
+          'X-App-Key': dotenv.env['APP_KEY'] ?? '',
         },
         body: jsonEncode({
           'email': email,
@@ -446,11 +480,10 @@ class ApiService {
 
         if (data['user'] != null) {
           await _saveUserLocally(AppUser.fromJson(data['user']));
-        }else{
+        } else {
           print("user is null, cant save it");
         }
         print("login success");
-
 
         return null; // ✅ Success
       } else {
@@ -480,7 +513,7 @@ class ApiService {
         headers: {
           'Content-Type': 'application/json',
           'Accept': 'application/json',
-          'X-App-Key': app_key,
+          'X-App-Key': dotenv.env['APP_KEY'] ?? '',
         },
         body: jsonEncode({
           'name': name,
@@ -540,8 +573,6 @@ class ApiService {
     return null;
   }
 
-
-
   // 14. Delete Comment
   Future<bool> deleteComment(int commentId) async {
     final prefs = await SharedPreferences.getInstance();
@@ -549,7 +580,8 @@ class ApiService {
 
     try {
       final response = await http.delete(
-        Uri.parse('$baseUrl/comments/$commentId'), // Assumes standard REST route
+        Uri.parse('$baseUrl/comments/$commentId'),
+        // Assumes standard REST route
         headers: {
           'Authorization': 'Bearer $token',
           'Accept': 'application/json',
@@ -562,7 +594,6 @@ class ApiService {
       return false;
     }
   }
-
 
   // 15. Delete Post
   Future<bool> deletePost(int postId) async {
@@ -585,4 +616,150 @@ class ApiService {
     }
   }
 
+  // ==========================================================
+  // SOCIAL AUTH
+  // ==========================================================
+
+  Future<String?> loginWithGoogle() async {
+    // 1. Initialize Google Sign In
+    // IMPORTANT: We use the "Web Client ID" here so Google generates a token
+    // that our Laravel Backend (which is a "Web" app to Google) can verify.
+    const String webClientId =
+        "742894756114-53auc51llpq4g54gh3sct2hat0ir1j3k.apps.googleusercontent.com";
+
+    final GoogleSignIn googleSignIn = GoogleSignIn(
+      serverClientId: webClientId,
+      scopes: ['email', 'profile', 'openid'],
+    );
+
+    try {
+      // 2. Trigger the Native Login Dialog
+      final GoogleSignInAccount? googleUser = await googleSignIn.signIn();
+
+      if (googleUser == null) {
+        return "Login cancelled"; // User closed the popup
+      }
+
+      // 3. Get the Auth Details (Tokens)
+      final GoogleSignInAuthentication googleAuth =
+          await googleUser.authentication;
+
+      // This is the token Laravel needs to verify the user
+      final String? idToken = googleAuth.idToken;
+      final String? accessToken = googleAuth.accessToken;
+
+      if (idToken == null) {
+        return "Failed to get ID Token from Google";
+      }
+
+      // 4. Send to Laravel
+      return await _socialLoginBackend(
+        provider: 'google',
+        token: idToken,
+        accessToken: accessToken, // Send this too just in case needed
+      );
+    } catch (e) {
+      print("Google Sign In Error: $e");
+      return "Google Login failed: $e";
+    }
+  }
+
+  // Helper function to talk to Laravel
+  Future<String?> _socialLoginBackend({
+    required String provider,
+    required String token,
+    String? accessToken,
+  }) async {
+    final prefs = await SharedPreferences.getInstance();
+    final uuid = await _getDeviceUuid();
+
+    try {
+      final response = await http.post(
+        Uri.parse('$baseUrl/auth/social-login'),
+        // You need to create this in Laravel
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+          'X-App-Key': dotenv.env['APP_KEY'] ?? '',
+        },
+        body: jsonEncode({
+          'provider': provider, // 'google'
+          'token': token, // The ID Token
+          'access_token': accessToken,
+          'device_uuid': uuid,
+          'device_name': 'mobile_app',
+        }),
+      );
+
+      final data = jsonDecode(response.body);
+
+      if (response.statusCode == 200) {
+        // Login Success
+        await prefs.setString('auth_token', data['token']);
+        if (data['user'] != null) {
+          await _saveUserLocally(AppUser.fromJson(data['user']));
+        }
+        return null; // Null means success in your app logic
+      } else {
+        return data['message'] ?? "Social login failed";
+      }
+    } catch (e) {
+      return "Connection error";
+    }
+  }
+
+  // 16. Change Password
+  Future<Map<String, dynamic>> changePassword({
+    required String currentPassword,
+    required String newPassword,
+    required String newPasswordConfirmation,
+  }) async {
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString('auth_token');
+
+    try {
+      final response = await http.post(
+        Uri.parse('$baseUrl/auth/change-password'),
+        headers: {
+          'Authorization': 'Bearer $token',
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+        },
+        body: jsonEncode({
+          'current_password': currentPassword,
+          'new_password': newPassword,
+          'new_password_confirmation': newPasswordConfirmation,
+        }),
+      );
+
+      final data = jsonDecode(response.body);
+
+      if (response.statusCode == 200) {
+        return {
+          'success': true,
+          'message': data['message'] ?? 'Password changed successfully',
+        };
+      } else {
+        // Handle validation errors or bad request
+        String errorMessage = data['message'] ?? 'Failed to change password';
+
+        // Optional: specific Laravel validation errors
+        if (data['errors'] != null) {
+          final errors = data['errors'] as Map<String, dynamic>;
+          if (errors.containsKey('current_password')) {
+            errorMessage = errors['current_password'][0];
+          } else if (errors.containsKey('new_password')) {
+            errorMessage = errors['new_password'][0];
+          }
+        }
+
+        return {'success': false, 'message': errorMessage};
+      }
+    } catch (e) {
+      return {
+        'success': false,
+        'message': 'Connection error. Please try again.',
+      };
+    }
+  }
 }

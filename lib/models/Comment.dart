@@ -9,6 +9,8 @@ class Comment {
   final int authorId;
   final List<Comment> replies;
   final String? language;
+  final String status;      // e.g., 'published', 'banned'
+  final String? safetyLabel; // e.g., 'harassment', 'hate_speech'
 
   Comment({
     required this.id,
@@ -19,6 +21,8 @@ class Comment {
     required this.createdAt,
     this.replies = const [],
     this.language,
+    required this.status,      // ✅ Required
+    this.safetyLabel,
   });
 
   factory Comment.fromJson(Map<String, dynamic> json) {
@@ -68,6 +72,8 @@ class Comment {
             : null,
         replies: repliesList,
         language: json['language'], // ✅ Add this
+        status: json['status'] ?? 'published',
+        safetyLabel: json['safety_label'],
       );
     } catch (e) {
       if (kDebugMode) {

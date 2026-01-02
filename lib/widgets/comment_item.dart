@@ -9,7 +9,6 @@ import '../api/api_service.dart'; // Import API Service
 class CommentItem extends StatefulWidget {
   final Comment comment;
   final VoidCallback? onDeleted;
-
   const CommentItem({super.key, required this.comment, this.onDeleted});
 
   @override
@@ -32,7 +31,6 @@ class _CommentItemState extends State<CommentItem> {
 
   // ✅ Added Delete Handler
   Future<void> _handleDelete() async {
-    // Show Confirmation Dialog
     final bool? confirm = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
@@ -56,13 +54,11 @@ class _CommentItemState extends State<CommentItem> {
 
     setState(() => _isDeleting = true);
 
-    // Call API
     final success = await ApiService().deleteComment(widget.comment.id);
 
     if (mounted) {
       setState(() => _isDeleting = false);
       if (success) {
-        // Trigger callback to remove from list
         if (widget.onDeleted != null) widget.onDeleted!();
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -73,7 +69,6 @@ class _CommentItemState extends State<CommentItem> {
   }
 
   Future<void> _handleTranslate() async {
-    // If already translated, toggle back to original (or just hide translation)
     if (_translatedText != null) {
       setState(() {
         _translatedText = null;
@@ -83,7 +78,6 @@ class _CommentItemState extends State<CommentItem> {
 
     setState(() => _isTranslating = true);
 
-    // Get current device/app locale (e.g., 'en', 'fr', 'ar')
     final String currentLang = Localizations.localeOf(context).languageCode;
 
     final result = await ApiService().translateContent(
@@ -104,6 +98,7 @@ class _CommentItemState extends State<CommentItem> {
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
 
+    ApiService().getStoredUser();
     // ✅ THEME AWARENESS
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
@@ -117,9 +112,12 @@ class _CommentItemState extends State<CommentItem> {
     bool showTranslation =
         widget.comment.language != null &&
             widget.comment.language != currentLang;
-
+    ApiService().getStoredUser();
     final bool isMine = widget.comment.authorId == ApiService().currentUser?.id;
     if (isMine) showTranslation = false;
+
+    // ✅ Check Banned Status
+    final bool isBanned = widget.comment.status == 'banned';
 
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
@@ -169,7 +167,6 @@ class _CommentItemState extends State<CommentItem> {
                       ),
                     ),
 
-                    // ✅ Updated: Row containing Time and optional Delete Icon
                     Row(
                       children: [
                         Text(
@@ -179,7 +176,6 @@ class _CommentItemState extends State<CommentItem> {
                             fontSize: 11,
                           ),
                         ),
-                        // Show Delete Icon if it's my comment
                         if (isMine) ...[
                           const SizedBox(width: 10),
                           if (_isDeleting)
@@ -205,40 +201,69 @@ class _CommentItemState extends State<CommentItem> {
                 ),
                 const SizedBox(height: 4),
 
-                // Original Content
-                Text(
-                  _translatedText ?? widget.comment.content,
-                  style: TextStyle(color: contentColor, fontSize: 14), // ✅ Dynamic
-                ),
-
-                // TRANSLATION UI
-                if (showTranslation)
-                  if (_isTranslating)
-                    const Padding(
-                      padding: EdgeInsets.only(top: 8.0),
-                      child: SizedBox(
-                        height: 12,
-                        width: 12,
-                        child: CircularProgressIndicator(strokeWidth: 2),
-                      ),
-                    )
-                  else
-                    GestureDetector(
-                      onTap: _handleTranslate,
-                      child: Padding(
-                        padding: const EdgeInsets.only(top: 8.0),
-                        child: Text(
-                          _translatedText == null
-                              ? l10n.see_translation
-                              : l10n.see_original,
-                          style: TextStyle(
-                            color: subTextColor.withOpacity(0.7), // ✅ Dynamic
-                            fontSize: 11,
+                // ✅ BANNED LOGIC
+                if (isBanned)
+                  Container(
+                    margin: const EdgeInsets.only(top: 4),
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: Colors.red.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(6),
+                      border: Border.all(color: Colors.red.withOpacity(0.3)),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(Icons.block, color: Colors.red, size: 14),
+                        const SizedBox(width: 6),
+                        Text(
+                          // Shows "Banned: HARASSMENT" or just "Banned"
+                          "Banned: ${widget.comment.safetyLabel?.toUpperCase() ?? 'VIOLATION'}",
+                          style: const TextStyle(
+                            color: Colors.red,
+                            fontSize: 12,
                             fontWeight: FontWeight.bold,
                           ),
                         ),
-                      ),
+                      ],
                     ),
+                  )
+                else ...[
+                  // ✅ Show Content ONLY if not banned
+                  Text(
+                    _translatedText ?? (widget.comment.content+"-"+widget.comment.authorId.toString()+"-"+ApiService().currentUser!.id.toString()+"-"+isMine.toString()),
+                    style: TextStyle(color: contentColor, fontSize: 14),
+                  ),
+
+                  // TRANSLATION UI (Only if not banned)
+                  if (showTranslation)
+                    if (_isTranslating)
+                      const Padding(
+                        padding: EdgeInsets.only(top: 8.0),
+                        child: SizedBox(
+                          height: 12,
+                          width: 12,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        ),
+                      )
+                    else
+                      GestureDetector(
+                        onTap: _handleTranslate,
+                        child: Padding(
+                          padding: const EdgeInsets.only(top: 8.0),
+                          child: Text(
+                            _translatedText == null
+                                ? l10n.see_translation
+                                : l10n.see_original,
+                            style: TextStyle(
+                              color: subTextColor.withOpacity(0.7),
+                              fontSize: 11,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ),
+                      ),
+                ],
               ],
             ),
           ),

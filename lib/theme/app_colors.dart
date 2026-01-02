@@ -8,17 +8,17 @@ class AppColors {
   // old code doesn't break, but they won't automatically switch to light mode.
 
   static const Color backgroundDark = Color(0xFF121212);
-  static const Color surface = Color(0xFF1E1E1E); // Restored
+  static const Color surface = Color(0xFF1E1E1E);
 
   static const Color textPrimary = Colors.white;
   static const Color textSecondary = Color(0xFF9E9E9E);
-  static const Color textTertiary = Color(0xFF838383); // Restored
+  static const Color textTertiary = Color(0xFF838383);
 
   static final Color border = Colors.grey.shade900;
 
   // Shared Colors (Brand)
-  static const Color primary = Colors.teal;
-  static const Color accent = Colors.tealAccent;
+  static const Color primary = Color(0xFF00AE62);
+  static const Color accent = Color(0xFF00AE62);
   static const Color like = Colors.redAccent;
 
   // ===========================================================================

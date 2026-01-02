@@ -1,5 +1,5 @@
 {
-    "appTitle": "Dua Community",
+    "appTitle": "Demandes de Dua",
     "welcome": "Bienvenue",
     "settings": "Paramètres",
     "accountBannedTitle": "Compte suspendu",
@@ -113,5 +113,19 @@
     "nameHint": "Nom complet",
     "enterEmailPasswordError": "Veuillez entrer l'e-mail et le mot de passe",
     "registrationSuccessLogin": "Inscription réussie ! Connexion en cours...",
-    "authFailedMessage": "L'authentification a échoué. Veuillez vérifier vos identifiants."
+    "authFailedMessage": "L'authentification a échoué. Veuillez vérifier vos identifiants.",
+    "see_translation" :"Voir la traduction",
+    "see_original" : "Voir l'original",
+    "deleteAccountMessage": "Êtes-vous sûr de vouloir supprimer votre compte ?",
+    "themeLabel": "Thème",
+    "themeAuto": "Défaut système",
+    "themeLight": "Mode clair",
+    "themeDark": "Mode sombre",
+    "joinCommunityTitle": "Rejoignez la communauté\nglobale aujourd'hui.",
+    "agreeToTermsStart": "En vous inscrivant, vous acceptez nos ",
+    "termsOfService": "Conditions d'utilisation",
+    "andText": " et ",
+    "privacyPolicy": "Politique de confidentialité",
+    "cookieUseEnd": ", y compris l'utilisation des cookies.",
+    "errorOpenLink": "Impossible d'ouvrir le lien"
 }

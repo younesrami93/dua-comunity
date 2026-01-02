@@ -22,6 +22,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
   List<Post> _posts = [];
   bool _isLoading = true;
 
+  // ✅ Pagination State
+  String? _nextCursor;
+  bool _isLoadingMore = false;
+  bool _hasMore = true;
+
   // Helper to check if this is the current user's profile
   bool get _isCurrentUser => widget.userId == null;
 
@@ -31,8 +36,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
     _loadProfileData();
   }
 
+  // 1. Initial Load / Refresh
   Future<void> _loadProfileData() async {
-    setState(() => _isLoading = true);
+    setState(() {
+      if (_posts.isEmpty) _isLoading = true;
+      _nextCursor = null; // Reset cursor on refresh
+      _hasMore = true;
+    });
+
     try {
       final api = ApiService();
 
@@ -44,13 +55,18 @@ class _ProfileScreenState extends State<ProfileScreen> {
         user = await api.getUserById(widget.userId!);
       }
 
-      // 2. Get User's Posts
-      final posts = await api.getFeed(userId: user.id);
+      // 2. Get User's Posts (First Page)
+      // Note: We send cursor: null to get the first page
+      final feedResult = await api.getFeed(userId: user.id, cursor: null);
 
       if (mounted) {
         setState(() {
           _user = user;
-          _posts = posts;
+          _posts = feedResult['posts'] as List<Post>;
+          _nextCursor = feedResult['next_cursor'] as String?;
+
+          if (_nextCursor == null) _hasMore = false;
+
           _isLoading = false;
         });
       }
@@ -59,9 +75,42 @@ class _ProfileScreenState extends State<ProfileScreen> {
     }
   }
 
+  // 2. Load More (Infinite Scroll)
+  Future<void> _loadMoreData() async {
+    // Stop if already loading, no more data, or no user loaded yet
+    if (_isLoadingMore || !_hasMore || _nextCursor == null || _user == null) return;
+
+    setState(() => _isLoadingMore = true);
+
+    try {
+      final api = ApiService();
+      final result = await api.getFeed(
+          userId: _user!.id,
+          cursor: _nextCursor // ✅ Fetch next page
+      );
+
+      if (mounted) {
+        setState(() {
+          final newPosts = result['posts'] as List<Post>;
+
+          if (newPosts.isEmpty) {
+            _hasMore = false;
+          } else {
+            _posts.addAll(newPosts);
+            _nextCursor = result['next_cursor'] as String?;
+
+            if (_nextCursor == null) _hasMore = false;
+          }
+          _isLoadingMore = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) setState(() => _isLoadingMore = false);
+    }
+  }
+
   // Reuse the secure logout logic
   Future<void> _logout() async {
-    // ✅ Access Localization
     final l10n = AppLocalizations.of(context)!;
 
     final confirmed = await showDialog<bool>(
@@ -89,7 +138,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     await ApiService().logout();
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove('auth_token');
-    await prefs.remove('guest_uuid'); // Clear guest ID too
+    await prefs.remove('guest_uuid');
 
     if (mounted) {
       Navigator.pushAndRemoveUntil(
@@ -109,10 +158,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   @override
   Widget build(BuildContext context) {
-    // ✅ Access Localization
     final l10n = AppLocalizations.of(context)!;
-
-    // ✅ THEME AWARENESS
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
 
@@ -120,26 +166,25 @@ class _ProfileScreenState extends State<ProfileScreen> {
     final textColor = isDark ? AppColors.textPrimary : AppColors.textPrimaryLight;
     final subTextColor = isDark ? AppColors.textSecondary : AppColors.textSecondaryLight;
 
-    if (_isLoading) {
+    if (_isLoading && _user == null) {
       return Scaffold(
-        backgroundColor: backgroundColor, // ✅ Dynamic
+        backgroundColor: backgroundColor,
         body: const Center(
             child: CircularProgressIndicator(color: AppColors.primary)),
       );
     }
 
     return Scaffold(
-      backgroundColor: backgroundColor, // ✅ Dynamic
+      backgroundColor: backgroundColor,
       appBar: AppBar(
-        // ✅ Localized Title Logic
         title: Text(
           _isCurrentUser
               ? l10n.myProfileTitle
               : (_user?.username ?? l10n.profileTitle),
-          style: TextStyle(color: textColor), // ✅ Dynamic
+          style: TextStyle(color: textColor),
         ),
         centerTitle: true,
-        iconTheme: IconThemeData(color: textColor), // ✅ Dynamic
+        iconTheme: IconThemeData(color: textColor),
         actions: _isCurrentUser
             ? [
           IconButton(
@@ -149,58 +194,83 @@ class _ProfileScreenState extends State<ProfileScreen> {
         ]
             : null,
       ),
-      body: RefreshIndicator(
-        onRefresh: _loadProfileData,
-        color: AppColors.primary,
-        child: ListView(
-          physics: const AlwaysScrollableScrollPhysics(),
-          padding: const EdgeInsets.only(bottom: 40),
-          children: [
-            // 1. Profile Header Card
-            _buildProfileHeader(l10n, isDark), // ✅ Pass theme state
+      body: NotificationListener<ScrollNotification>(
+        // ✅ Detect Scroll to Bottom
+        onNotification: (ScrollNotification scrollInfo) {
+          if (!_isLoadingMore &&
+              _hasMore &&
+              scrollInfo.metrics.pixels >=
+                  scrollInfo.metrics.maxScrollExtent - 200) {
+            _loadMoreData();
+          }
+          return false;
+        },
+        child: RefreshIndicator(
+          onRefresh: _loadProfileData,
+          color: AppColors.primary,
+          child: ListView(
+            physics: const AlwaysScrollableScrollPhysics(),
+            padding: const EdgeInsets.only(bottom: 40),
+            children: [
+              // 1. Profile Header Card
+              _buildProfileHeader(l10n, isDark),
 
-            const SizedBox(height: 20),
+              const SizedBox(height: 20),
 
-            // 2. Section Title
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
-              child: Row(
-                children: [
-                  const Icon(Icons.grid_on_rounded,
-                      color: AppColors.primary, size: 20),
-                  const SizedBox(width: 8),
-                  Text(
-                    l10n.postsLabel,
-                    style: TextStyle(
-                      color: textColor.withOpacity(0.9), // ✅ Dynamic
-                      fontWeight: FontWeight.bold,
-                      fontSize: 16,
+              // 2. Section Title
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+                child: Row(
+                  children: [
+                    const Icon(Icons.grid_on_rounded,
+                        color: AppColors.primary, size: 20),
+                    const SizedBox(width: 8),
+                    Text(
+                      l10n.postsLabel,
+                      style: TextStyle(
+                        color: textColor.withOpacity(0.9),
+                        fontWeight: FontWeight.bold,
+                        fontSize: 16,
+                      ),
+                    ),
+                    const Spacer(),
+                    Text(
+                      "${_posts.length}",
+                      style: TextStyle(color: subTextColor, fontSize: 14),
+                    ),
+                  ],
+                ),
+              ),
+
+              // 3. Posts List
+              if (_posts.isEmpty && !_isLoading)
+                _buildEmptyState(l10n, subTextColor)
+              else
+                ListView.separated(
+                  physics: const NeverScrollableScrollPhysics(),
+                  shrinkWrap: true,
+                  itemCount: _posts.length,
+                  separatorBuilder: (context, index) =>
+                  const SizedBox(height: 1),
+                  itemBuilder: (context, index) {
+                    return PostItem(post: _posts[index]);
+                  },
+                ),
+
+              // ✅ 4. Bottom Loader
+              if (_isLoadingMore)
+                const Padding(
+                  padding: EdgeInsets.all(20.0),
+                  child: Center(
+                    child: SizedBox(
+                      width: 24,
+                      height: 24,
+                      child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.primary),
                     ),
                   ),
-                  const Spacer(),
-                  Text(
-                    "${_posts.length}",
-                    style: TextStyle(color: subTextColor, fontSize: 14), // ✅ Dynamic
-                  ),
-                ],
-              ),
-            ),
-
-            // 3. Posts List
-            if (_posts.isEmpty)
-              _buildEmptyState(l10n, subTextColor) // ✅ Pass color
-            else
-              ListView.separated(
-                physics: const NeverScrollableScrollPhysics(),
-                shrinkWrap: true,
-                itemCount: _posts.length,
-                separatorBuilder: (context, index) =>
-                const SizedBox(height: 1), // Thin divider
-                itemBuilder: (context, index) {
-                  return PostItem(post: _posts[index]);
-                },
-              ),
-          ],
+                ),
+            ],
+          ),
         ),
       ),
     );
@@ -217,11 +287,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
       margin: const EdgeInsets.all(16),
       padding: const EdgeInsets.symmetric(vertical: 24, horizontal: 16),
       decoration: BoxDecoration(
-        color: surfaceColor, // ✅ Dynamic
+        color: surfaceColor,
+        border: Border.all(color: subTextColor.withOpacity(0.2)),
         borderRadius: BorderRadius.circular(20),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.1), // Softer shadow
+            color: Colors.black.withOpacity(0.04),
             blurRadius: 10,
             offset: const Offset(0, 5),
           ),
@@ -231,14 +302,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
         children: [
           // Avatar
           Container(
-            padding: const EdgeInsets.all(3), // Border width
+            padding: const EdgeInsets.all(2),
             decoration: const BoxDecoration(
-              color: AppColors.primary, // Border color
+              color: AppColors.primary,
               shape: BoxShape.circle,
             ),
             child: CircleAvatar(
               radius: 45,
-              backgroundColor: scaffoldBg, // ✅ Match dynamic background
+              backgroundColor: scaffoldBg,
               backgroundImage: _user?.avatarUrl != null
                   ? NetworkImage(_user!.avatarUrl!)
                   : null,
@@ -260,7 +331,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
           Text(
             _user?.username ?? l10n.guestName,
             style: TextStyle(
-              color: textColor, // ✅ Dynamic
+              color: textColor,
               fontSize: 24,
               fontWeight: FontWeight.bold,
             ),
@@ -272,34 +343,22 @@ class _ProfileScreenState extends State<ProfileScreen> {
               margin: const EdgeInsets.only(top: 8),
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
               decoration: BoxDecoration(
-                color: scaffoldBg, // ✅ Dynamic
+                color: scaffoldBg,
                 borderRadius: BorderRadius.circular(20),
                 border: Border.all(
-                    color: subTextColor.withOpacity(0.3)), // ✅ Dynamic
+                    color: subTextColor.withOpacity(0.3)),
               ),
               child: Text(
                 l10n.guestAccountLabel,
-                style: TextStyle(color: subTextColor, fontSize: 12), // ✅ Dynamic
+                style: TextStyle(color: subTextColor, fontSize: 12),
               ),
             ),
 
           const SizedBox(height: 24),
 
-          // Stats
-         /* Row(
-            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-            children: [
-              _buildStatItem(l10n.postsLabel, "${_posts.length}", textColor, subTextColor),
-              _buildStatItem(l10n.likesLabel, "0", textColor, subTextColor),
-              _buildStatItem(l10n.savedLabel, "0", textColor, subTextColor),
-            ],
-          ),*/
-
           // Action Buttons (Only for current user)
           if (_isCurrentUser) ...[
-            const SizedBox(height: 24),
-            Divider(color: isDark ? Colors.white10 : Colors.black12), // ✅ Dynamic Divider
-            const SizedBox(height: 16),
+            const SizedBox(height: 8),
             Row(
               children: [
                 Expanded(
@@ -308,9 +367,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     icon: Icon(Icons.settings, size: 18, color: textColor),
                     label: Text(l10n.settingsLabel),
                     style: OutlinedButton.styleFrom(
-                      foregroundColor: textColor, // ✅ Dynamic
+                      foregroundColor: textColor,
                       side: BorderSide(
-                          color: subTextColor.withOpacity(0.5)), // ✅ Dynamic
+                          color: subTextColor.withOpacity(0.5)),
                       padding: const EdgeInsets.symmetric(vertical: 12),
                       shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(10)),
@@ -340,42 +399,19 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
-  Widget _buildStatItem(String label, String value, Color textColor, Color subColor) {
-    return Column(
-      children: [
-        Text(
-          value,
-          style: TextStyle(
-            color: textColor, // ✅ Dynamic
-            fontSize: 20,
-            fontWeight: FontWeight.bold,
-          ),
-        ),
-        const SizedBox(height: 4),
-        Text(
-          label,
-          style: TextStyle(
-            color: subColor, // ✅ Dynamic
-            fontSize: 13,
-          ),
-        ),
-      ],
-    );
-  }
-
   Widget _buildEmptyState(AppLocalizations l10n, Color subColor) {
     return Padding(
       padding: const EdgeInsets.all(40.0),
       child: Column(
         children: [
           Icon(Icons.feed_outlined,
-              size: 48, color: subColor.withOpacity(0.3)), // ✅ Dynamic
+              size: 48, color: subColor.withOpacity(0.3)),
           const SizedBox(height: 16),
           Text(
             _isCurrentUser
                 ? l10n.noPostsYetUser
                 : l10n.noPostsYetOther,
-            style: TextStyle(color: subColor, fontSize: 16), // ✅ Dynamic
+            style: TextStyle(color: subColor, fontSize: 16),
           ),
         ],
       ),

@@ -43,7 +43,9 @@ class _PostItemState extends State<PostItem> {
     setState(() => _isTranslating = true);
 
     // Get current locale
-    final String currentLang = Localizations.localeOf(context).languageCode;
+    final String currentLang = Localizations
+        .localeOf(context)
+        .languageCode;
 
     final result = await ApiService().translateContent(
       id: _post.id,
@@ -85,7 +87,8 @@ class _PostItemState extends State<PostItem> {
     // Access localization using the current context
     final l10n = AppLocalizations.of(context)!;
     final String text =
-        "${_post.content}\n\n${l10n.sharePostText}"; // "Shared via Dua Community"
+        "${_post.content}\n\n${l10n
+        .sharePostText}"; // "Shared via Dua Community"
     Share.share(text);
   }
 
@@ -111,13 +114,19 @@ class _PostItemState extends State<PostItem> {
     final isDark = theme.brightness == Brightness.dark;
 
     // Dynamic Colors
-    final Color textColor = isDark ? AppColors.textPrimary : AppColors.textPrimaryLight;
-    final Color subTextColor = isDark ? AppColors.textSecondary : AppColors.textSecondaryLight;
-    final Color surfaceColor = isDark ? AppColors.surface : AppColors.surfaceLight;
+    final Color textColor = isDark ? AppColors.textPrimary : AppColors
+        .textPrimaryLight;
+    final Color subTextColor = isDark ? AppColors.textSecondary : AppColors
+        .textSecondaryLight;
+    final Color surfaceColor = isDark ? AppColors.surface : AppColors
+        .surfaceLight;
     final Color backgroundColor = theme.scaffoldBackgroundColor;
 
-    final String currentLang = Localizations.localeOf(context).languageCode;
-    bool showTranslation = widget.post.language != null && widget.post.language != currentLang;
+    final String currentLang = Localizations
+        .localeOf(context)
+        .languageCode;
+    bool showTranslation = widget.post.language != null &&
+        widget.post.language != currentLang;
 
     final bool isMine = widget.post.authorId == ApiService().currentUser?.id;
     if (isMine) showTranslation = false;
@@ -132,6 +141,9 @@ class _PostItemState extends State<PostItem> {
     final String displayName = showRealIdentity
         ? _post.authorName
         : l10n.anonymousUser;
+
+    // ✅ Check if Banned
+    final bool isBanned = _post.status == 'banned';
 
     return GestureDetector(
       onTap: () {
@@ -152,6 +164,8 @@ class _PostItemState extends State<PostItem> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             // --- COLUMN 1: Avatar ---
+
+
             GestureDetector(
               // ✅ Tap logic: Enabled if showing real identity
               onTap: showRealIdentity ? () => _openProfile(context) : null,
@@ -160,7 +174,13 @@ class _PostItemState extends State<PostItem> {
                 backgroundColor: showRealIdentity
                     ? surfaceColor // ✅ Dynamic Surface
                     : Colors.grey,
+                // ✅ Load image if Real Identity is ON and Avatar is NOT NULL
+                backgroundImage: (showRealIdentity && widget.post.authorAvatar != null)
+                    ? NetworkImage(widget.post.authorAvatar!)
+                    : null,
+                // ✅ UPDATED: Only show Text child if there is NO image
                 child: showRealIdentity
+                    ? (widget.post.authorAvatar == null
                     ? Text(
                   displayName.isNotEmpty
                       ? displayName[0].toUpperCase()
@@ -170,6 +190,7 @@ class _PostItemState extends State<PostItem> {
                     fontWeight: FontWeight.bold,
                   ),
                 )
+                    : null) // Image exists, so hide the letter
                     : const Icon(Icons.person, color: Colors.white, size: 20),
               ),
             ),
@@ -215,7 +236,8 @@ class _PostItemState extends State<PostItem> {
                                   vertical: 2,
                                 ),
                                 decoration: BoxDecoration(
-                                  color: subTextColor.withOpacity(0.2), // ✅ Dynamic
+                                  color: subTextColor.withOpacity(0.2),
+                                  // ✅ Dynamic
                                   borderRadius: BorderRadius.circular(4),
                                 ),
                                 child: Text(
@@ -255,7 +277,40 @@ class _PostItemState extends State<PostItem> {
 
                   const SizedBox(height: 6),
 
-                  // 3. Content
+                  // ✅ NEW: Banned Flag Indicator
+                  if (isBanned)
+                    Container(
+                      margin: const EdgeInsets.only(bottom: 10),
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: Colors.red.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(color: Colors.red.withOpacity(0.3)),
+                      ),
+                      child: Row(
+                        children: [
+                          const Icon(
+                              Icons.warning_amber_rounded, color: Colors.red,
+                              size: 20),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              // Displays "Flagged: [Category]" e.g., "Flagged: Harassment"
+                              "Flagged: ${_post.safetyLabel?.toUpperCase() ??
+                                  'VIOLATION'}",
+                              style: const TextStyle(
+                                color: Colors.red,
+                                fontWeight: FontWeight.bold,
+                                fontSize: 13,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+
+                  // 3. Content (Only show if not banned, or maybe show blurred/warning?)
+                  // For now, we show it below the flag as requested.
                   Text(
                     _translatedText == null ? _post.content : _translatedText!,
                     style: TextStyle(

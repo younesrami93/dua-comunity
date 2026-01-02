@@ -1,5 +1,5 @@
 {
-  "appTitle": "Dua Community",
+  "appTitle": "Permohonan Doa ",
   "welcome": "Selamat Datang",
   "settings": "Pengaturan",
   "accountBannedTitle": "Akun Diblokir",
@@ -113,5 +113,19 @@
   "nameHint": "Nama Lengkap",
   "enterEmailPasswordError": "Harap masukkan email dan kata sandi",
   "registrationSuccessLogin": "Pendaftaran berhasil! Sedang masuk...",
-  "authFailedMessage": "Otentikasi gagal. Periksa kredensial Anda."
+  "authFailedMessage": "Otentikasi gagal. Periksa kredensial Anda.",
+  "see_translation" :"Lihat terjemahan",
+  "see_original" : "Lihat aslinya",
+  "deleteAccountMessage": "Apakah Anda yakin ingin menghapus akun Anda ?",
+  "themeLabel": "Tema",
+  "themeAuto": "Default Sistem",
+  "themeLight": "Mode Terang",
+  "themeDark": "Mode Gelap",
+  "joinCommunityTitle": "Bergabunglah dengan komunitas\nglobal hari ini.",
+  "agreeToTermsStart": "Dengan mendaftar, Anda menyetujui ",
+  "termsOfService": "Ketentuan Layanan",
+  "andText": " dan ",
+  "privacyPolicy": "Kebijakan Privasi",
+  "cookieUseEnd": ", termasuk Penggunaan Cookie.",
+  "errorOpenLink": "Tidak dapat membuka tautan"
 }

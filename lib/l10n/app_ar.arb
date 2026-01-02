@@ -1,5 +1,5 @@
 {
-  "appTitle": "مجتمع الدعاء",
+  "appTitle": "ادعُ معي",
   "welcome": "مرحباً",
   "languageLabel": "اللغة",
   "settings": "الإعدادات",
@@ -150,5 +150,19 @@
   "nameHint": "الاسم الكامل",
   "enterEmailPasswordError": "الرجاء إدخال البريد الإلكتروني وكلمة المرور",
   "registrationSuccessLogin": "تم التسجيل بنجاح! جاري تسجيل الدخول...",
-  "authFailedMessage": "فشلت المصادقة. يرجى التحقق من بياناتك."
+  "authFailedMessage": "فشلت المصادقة. يرجى التحقق من بياناتك.",
+  "see_translation" :"شاهد الترجمة",
+  "see_original" : "شاهد الأصل",
+  "deleteAccountMessage": "هل أنت متأكد أنك تريد حذف حسابك ؟",
+  "themeLabel": "المظهر",
+  "themeAuto": "النظام الافتراضي",
+  "themeLight": "الوضع الفاتح",
+  "themeDark": "الوضع الداكن",
+  "joinCommunityTitle": "انضم إلى المجتمع\nالعالمي اليوم.",
+  "agreeToTermsStart": "من خلال التسجيل، فإنك توافق على ",
+  "termsOfService": "شروط الخدمة",
+  "andText": " و ",
+  "privacyPolicy": "سياسة الخصوصية",
+  "cookieUseEnd": "، بما في ذلك استخدام ملفات تعريف الارتباط.",
+  "errorOpenLink": "تعذر فتح الرابط"
 }

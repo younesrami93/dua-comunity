@@ -379,6 +379,9 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
     final bool isAnonymous = _post.is_anonymous;
     final bool showRealIdentity = !isAnonymous || isMine;
 
+    // ✅ Check Banned Status
+    final bool isBanned = _post.status == 'banned';
+
     final String currentLang = Localizations.localeOf(context).languageCode;
     bool showTranslation =
         _post.language != null && _post.language != currentLang;
@@ -387,22 +390,29 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
     final String displayName =
     showRealIdentity ? _post.authorName : l10n.anonymousUser;
 
-    final Widget avatar = showRealIdentity
-        ? CircleAvatar(
-      radius: 20,
-      backgroundColor: surfaceColor, // ✅ Dynamic
-      child: Text(
-        displayName.isNotEmpty ? displayName[0].toUpperCase() : "?",
-        style: const TextStyle(
-          color: AppColors.accent,
-          fontWeight: FontWeight.bold,
-        ),
+
+    final Widget avatar = GestureDetector(
+      // ✅ Tap logic: Enabled if showing real identity
+      onTap: showRealIdentity ? () => _openProfile(_post.authorId) : null,
+      child: CircleAvatar(
+        radius: 20,
+        backgroundColor: showRealIdentity ? surfaceColor : Colors.grey, // ✅ Dynamic Surface
+        // ✅ Load image ONLY if Real Identity is ON and Avatar is NOT NULL
+        backgroundImage: (showRealIdentity && _post.authorAvatar != null)
+            ? NetworkImage(_post.authorAvatar!)
+            : null,
+        child: (showRealIdentity && _post.authorAvatar != null)
+            ? null // Hide child if image is showing
+            : (showRealIdentity
+            ? Text(
+          displayName.isNotEmpty ? displayName[0].toUpperCase() : "?",
+          style: const TextStyle(
+            color: AppColors.accent,
+            fontWeight: FontWeight.bold,
+          ),
+        )
+            : const Icon(Icons.person, color: Colors.white, size: 20)),
       ),
-    )
-        : const CircleAvatar(
-      radius: 20,
-      backgroundColor: Colors.grey,
-      child: Icon(Icons.person, color: Colors.white, size: 20),
     );
 
     return Column(
@@ -476,6 +486,34 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
                 ],
               ),
               const SizedBox(height: 15),
+
+              // ✅ NEW: Banned Flag Indicator
+              if (isBanned)
+                Container(
+                  margin: const EdgeInsets.only(bottom: 15),
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: Colors.red.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: Colors.red.withOpacity(0.3)),
+                  ),
+                  child: Row(
+                    children: [
+                      const Icon(Icons.warning_amber_rounded, color: Colors.red, size: 24),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Text(
+                          "Flagged: ${_post.safetyLabel?.toUpperCase() ?? 'VIOLATION'}",
+                          style: const TextStyle(
+                            color: Colors.red,
+                            fontWeight: FontWeight.bold,
+                            fontSize: 14,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
 
               // Content
               Text(

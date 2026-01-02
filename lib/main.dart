@@ -1,6 +1,7 @@
 import 'package:dua_app/l10n/app_localizations.dart';
 import 'package:dua_app/theme/app_theme.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 
@@ -34,6 +35,8 @@ void main() async {
   } else {
     startScreen = const LoginScreen();
   }
+
+  await dotenv.load(fileName: ".env");
 
   runApp(MyApp(
     startScreen: startScreen,

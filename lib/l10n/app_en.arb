@@ -1,5 +1,5 @@
 {
-    "appTitle": "Dua Community",
+    "appTitle": "Dua Requests",
     "welcome": "Welcome",
     "languageLabel": "Language",
     "settings": "Settings",
@@ -155,5 +155,13 @@
     "nameHint": "Full Name",
     "enterEmailPasswordError": "Please enter both email and password",
     "registrationSuccessLogin": "Registration successful! Logging you in...",
-    "authFailedMessage": "Authentication failed. Please check your credentials."
+    "authFailedMessage": "Authentication failed. Please check your credentials.",
+    "joinCommunityTitle": "Join the global\ncommunity today.",
+    "agreeToTermsStart": "By signing up, you agree to our ",
+    "termsOfService": "Terms of Service",
+    "andText": " and ",
+    "privacyPolicy": "Privacy Policy",
+    "cookieUseEnd": ", including Cookie Use.",
+    "errorOpenLink": "Could not open link"
+
 }
