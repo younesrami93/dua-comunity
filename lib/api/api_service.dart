@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:dua_app/l10n/app_localizations.dart';
 import 'package:dua_app/main.dart'; // Ensure this imports your global navigatorKey
 import 'package:dua_app/screens/login_screen.dart';
+import 'package:firebase_app_check/firebase_app_check.dart';
 import 'package:flutter/foundation.dart' hide Category;
 import 'package:flutter/material.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
@@ -34,6 +35,17 @@ class ApiService {
   // ==========================================================
   // ✅ GLOBAL BANNED HANDLER & REQUEST HELPERS
   // ==========================================================
+
+  Future<String?> _getAppCheckToken() async {
+    try {
+      // Force refresh only if necessary; usually false is fine
+      final token = await FirebaseAppCheck.instance.getToken(false);
+      return token;
+    } catch (e) {
+      print("App Check Token Error: $e");
+      return null;
+    }
+  }
 
   Future<void> _saveUserLocally(AppUser user) async {
     final prefs = await SharedPreferences.getInstance();
@@ -137,10 +149,15 @@ class ApiService {
   Future<http.Response> _get(String endpoint) async {
     final prefs = await SharedPreferences.getInstance();
     final token = prefs.getString('auth_token');
+    final appCheckToken = await _getAppCheckToken();
 
     final response = await http.get(
       Uri.parse('$baseUrl$endpoint'),
-      headers: {'Authorization': 'Bearer $token', 'Accept': 'application/json'},
+      headers: {
+        'Authorization': 'Bearer $token',
+        'Accept': 'application/json',
+        if (appCheckToken != null) 'X-Firebase-AppCheck': appCheckToken,
+      },
     );
 
     await _handleResponseCheck(response); // Global Ban Check
@@ -154,6 +171,7 @@ class ApiService {
   ) async {
     final prefs = await SharedPreferences.getInstance();
     final token = prefs.getString('auth_token');
+    final appCheckToken = await _getAppCheckToken();
 
     final response = await http.post(
       Uri.parse('$baseUrl$endpoint'),
@@ -161,6 +179,7 @@ class ApiService {
         'Authorization': 'Bearer $token',
         'Content-Type': 'application/json',
         'Accept': 'application/json',
+        if (appCheckToken != null) 'X-Firebase-AppCheck': appCheckToken,
       },
       body: jsonEncode(body),
     );
@@ -180,6 +199,8 @@ class ApiService {
       return prefs.getString('auth_token');
     }
 
+
+
     final uuid = await _getDeviceUuid();
 
     // Check if we have a stored guest UUID to reuse (optional feature)
@@ -190,16 +211,20 @@ class ApiService {
       guestUuid = uuid; // Fallback to device ID for now
     }
 
+    final appCheckToken = await _getAppCheckToken();
+
     try {
       final response = await http.post(
         Uri.parse('$baseUrl/auth/guest'),
         headers: {
           'Content-Type': 'application/json',
           'Accept': 'application/json',
+          if (appCheckToken != null) 'X-Firebase-AppCheck': appCheckToken,
           'X-App-Key': dotenv.env['APP_KEY'] ?? '',
         },
         body: jsonEncode({'device_uuid': guestUuid}),
       );
+      print(response.body);
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
@@ -422,6 +447,8 @@ class ApiService {
     } catch (e) {
       print("Error signing out of Google: $e");
     }
+    final appCheckToken = await _getAppCheckToken();
+
 
     try {
       await http.post(
@@ -429,6 +456,9 @@ class ApiService {
         headers: {
           'Authorization': 'Bearer $token',
           'Accept': 'application/json',
+          if (appCheckToken != null) 'X-Firebase-AppCheck': appCheckToken,
+
+
         },
       );
     } catch (_) {}
@@ -673,6 +703,8 @@ class ApiService {
     final prefs = await SharedPreferences.getInstance();
     final uuid = await _getDeviceUuid();
 
+    final appCheckToken = await _getAppCheckToken();
+
     try {
       final response = await http.post(
         Uri.parse('$baseUrl/auth/social-login'),
@@ -680,6 +712,7 @@ class ApiService {
         headers: {
           'Content-Type': 'application/json',
           'Accept': 'application/json',
+          if (appCheckToken != null) 'X-Firebase-AppCheck': appCheckToken,
           'X-App-Key': dotenv.env['APP_KEY'] ?? '',
         },
         body: jsonEncode({

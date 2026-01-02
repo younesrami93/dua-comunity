@@ -1,5 +1,9 @@
 import 'package:dua_app/l10n/app_localizations.dart';
 import 'package:dua_app/theme/app_theme.dart';
+import 'package:firebase_analytics/firebase_analytics.dart';
+import 'package:firebase_app_check/firebase_app_check.dart';
+import 'package:firebase_core/firebase_core.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -12,6 +16,20 @@ final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  await Firebase.initializeApp();
+
+  await FirebaseAppCheck.instance.activate(
+    // Default provider for Android is Play Integrity
+    androidProvider: kDebugMode
+        ? AndroidProvider.debug
+        : AndroidProvider.playIntegrity,
+
+    // Default provider for iOS is DeviceCheck/AppAttest
+    appleProvider: kDebugMode
+        ? AppleProvider.debug
+        : AppleProvider.appAttest,
+
+  );
 
   final prefs = await SharedPreferences.getInstance();
 
@@ -56,6 +74,12 @@ class MyApp extends StatefulWidget {
     this.initialLanguageCode,
     required this.initialThemeMode,
   });
+
+
+  static FirebaseAnalytics analytics = FirebaseAnalytics.instance;
+  static FirebaseAnalyticsObserver observer =
+  FirebaseAnalyticsObserver(analytics: analytics);
+
 
   // Static method to change Locale
   static void setLocale(BuildContext context, Locale newLocale) {
@@ -110,6 +134,10 @@ class _MyAppState extends State<MyApp> {
       navigatorKey: navigatorKey,
       title: 'Dua Community',
       debugShowCheckedModeBanner: false,
+
+      navigatorObservers: <NavigatorObserver>[
+        MyApp.observer,
+      ],
 
       // ✅ Theme Configuration
       themeMode: _themeMode,

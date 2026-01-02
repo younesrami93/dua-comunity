@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "709082590810",
+    "project_id": "dua-requests-for-yhy",
+    "storage_bucket": "dua-requests-for-yhy.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:709082590810:android:788fdb683dc7bf38d97263",
+        "android_client_info": {
+          "package_name": "com.yahya.dua_app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyC8ba1WWUKM08UTQYwbhc9qhr5JUDWIM-g"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
