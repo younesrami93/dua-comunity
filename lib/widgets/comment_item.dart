@@ -231,7 +231,7 @@ class _CommentItemState extends State<CommentItem> {
                 else ...[
                   // ✅ Show Content ONLY if not banned
                   Text(
-                    _translatedText ?? (widget.comment.content+"-"+widget.comment.authorId.toString()+"-"+ApiService().currentUser!.id.toString()+"-"+isMine.toString()),
+                    _translatedText ?? widget.comment.content,
                     style: TextStyle(color: contentColor, fontSize: 14),
                   ),
 

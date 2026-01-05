@@ -6,6 +6,7 @@ import '../models/post.dart';
 import '../api/api_service.dart';
 import '../theme/app_colors.dart';
 import '../widgets/post_item.dart';
+import '../widgets/shimmer_loading.dart'; // ✅ Import Shimmer
 import 'settings_screen.dart';
 import 'login_screen.dart';
 
@@ -56,7 +57,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
       }
 
       // 2. Get User's Posts (First Page)
-      // Note: We send cursor: null to get the first page
       final feedResult = await api.getFeed(userId: user.id, cursor: null);
 
       if (mounted) {
@@ -77,7 +77,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   // 2. Load More (Infinite Scroll)
   Future<void> _loadMoreData() async {
-    // Stop if already loading, no more data, or no user loaded yet
     if (_isLoadingMore || !_hasMore || _nextCursor == null || _user == null) return;
 
     setState(() => _isLoadingMore = true);
@@ -109,7 +108,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
     }
   }
 
-  // Reuse the secure logout logic
   Future<void> _logout() async {
     final l10n = AppLocalizations.of(context)!;
 
@@ -134,7 +132,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
     if (confirmed != true) return;
 
-    // Perform Logout
     await ApiService().logout();
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove('auth_token');
@@ -166,11 +163,16 @@ class _ProfileScreenState extends State<ProfileScreen> {
     final textColor = isDark ? AppColors.textPrimary : AppColors.textPrimaryLight;
     final subTextColor = isDark ? AppColors.textSecondary : AppColors.textSecondaryLight;
 
+    // ✅ USE SHIMMER LOADING
     if (_isLoading && _user == null) {
       return Scaffold(
         backgroundColor: backgroundColor,
-        body: const Center(
-            child: CircularProgressIndicator(color: AppColors.primary)),
+        appBar: AppBar(
+          backgroundColor: backgroundColor,
+          elevation: 0,
+          automaticallyImplyLeading: false,
+        ),
+        body: const ShimmerProfile(), //
       );
     }
 
@@ -195,7 +197,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
             : null,
       ),
       body: NotificationListener<ScrollNotification>(
-        // ✅ Detect Scroll to Bottom
         onNotification: (ScrollNotification scrollInfo) {
           if (!_isLoadingMore &&
               _hasMore &&
@@ -253,7 +254,21 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   separatorBuilder: (context, index) =>
                   const SizedBox(height: 1),
                   itemBuilder: (context, index) {
-                    return PostItem(post: _posts[index]);
+                    return PostItem(
+                      post: _posts[index],
+                      onRefresh: () {
+                        setState(() {});
+                      },
+                      // ✅ Handle Deletion Locally
+                      onDelete: () {
+                        setState(() {
+                          _posts.removeAt(index);
+                        });
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(content: Text(l10n.postDeleted ?? "Post deleted")),
+                        );
+                      },
+                    );
                   },
                 ),
 
@@ -277,7 +292,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   Widget _buildProfileHeader(AppLocalizations l10n, bool isDark) {
-    // Dynamic Colors
     final surfaceColor = isDark ? AppColors.surface : AppColors.surfaceLight;
     final textColor = isDark ? AppColors.textPrimary : AppColors.textPrimaryLight;
     final subTextColor = isDark ? AppColors.textSecondary : AppColors.textSecondaryLight;

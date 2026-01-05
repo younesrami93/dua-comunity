@@ -1,4 +1,5 @@
 import 'package:dua_app/l10n/app_localizations.dart';
+import 'package:dua_app/widgets/shimmer_loading.dart';
 import 'package:flutter/material.dart';
 import '../api/api_service.dart';
 import '../models/category.dart';
@@ -46,15 +47,7 @@ class _CategoryFilterBarState extends State<CategoryFilterBar> {
   @override
   Widget build(BuildContext context) {
     if (_isLoading) {
-      return const SizedBox(
-        height: 50,
-        child: Center(
-            child: SizedBox(
-                width: 20,
-                height: 20,
-                child: CircularProgressIndicator(
-                    strokeWidth: 2, color: AppColors.primary))),
-      );
+      return const ShimmerCategoryBar();
     }
 
     final l10n = AppLocalizations.of(context)!;

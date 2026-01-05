@@ -162,6 +162,7 @@
     "andText": " and ",
     "privacyPolicy": "Privacy Policy",
     "cookieUseEnd": ", including Cookie Use.",
-    "errorOpenLink": "Could not open link"
+    "errorOpenLink": "Could not open link",
+    "postDeleted": "Post Deleted"
 
 }

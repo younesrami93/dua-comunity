@@ -13,6 +13,7 @@ import 'add_post_screen.dart';
 import 'login_screen.dart';
 import 'profile_screen.dart';
 import '../widgets/post_item.dart';
+import '../widgets/shimmer_loading.dart'; // ✅ Ensure Shimmer is imported
 
 class FeedScreen extends StatefulWidget {
   const FeedScreen({super.key});
@@ -31,9 +32,9 @@ class _FeedScreenState extends State<FeedScreen> {
   int? _selectedCategoryId;
 
   // ✅ Pagination State
-  String? _nextCursor; // Store the weird string (e.g., "eyJpZCI6MT...")
-  bool _isLoadingMore = false; // Loading next page
-  bool _hasMore = true; // Are there more posts?
+  String? _nextCursor;
+  bool _isLoadingMore = false;
+  bool _hasMore = true;
 
   @override
   void initState() {
@@ -47,9 +48,9 @@ class _FeedScreenState extends State<FeedScreen> {
     if (!mounted) return;
 
     setState(() {
-      _nextCursor = null; // ✅ Reset cursor
-      _hasMore = true; // Reset "has more"
-      if (_posts.isEmpty) _isLoading = true; // Only show full spinner if empty
+      _nextCursor = null;
+      _hasMore = true;
+      if (_posts.isEmpty) _isLoading = true;
     });
 
     try {
@@ -65,10 +66,9 @@ class _FeedScreenState extends State<FeedScreen> {
         setState(() {
           final feedData = results[0] as Map<String, dynamic>;
           _posts = feedData['posts'] as List<Post>;
-          _nextCursor =
-              feedData['next_cursor'] as String?; // ✅ Store next cursor
+          _nextCursor = feedData['next_cursor'] as String?;
 
-          if (_nextCursor == null) _hasMore = false; // No more pages
+          if (_nextCursor == null) _hasMore = false;
 
           _currentUser = results[1] as AppUser;
           _isLoading = false;
@@ -80,7 +80,6 @@ class _FeedScreenState extends State<FeedScreen> {
   }
 
   // 2. Load More (Infinite Scroll)
-
   Future<void> _loadMoreData() async {
     if (_isLoadingMore || !_hasMore || _nextCursor == null) return;
 
@@ -101,7 +100,7 @@ class _FeedScreenState extends State<FeedScreen> {
             _hasMore = false;
           } else {
             _posts.addAll(newPosts);
-            _nextCursor = result['next_cursor'] as String?; // ✅ Update cursor for next time
+            _nextCursor = result['next_cursor'] as String?;
 
             if (_nextCursor == null) _hasMore = false;
           }
@@ -171,15 +170,15 @@ class _FeedScreenState extends State<FeedScreen> {
                                     : null,
                                 child: _currentUser?.avatarUrl == null
                                     ? Text(
-                                        _currentUser?.username[0]
-                                                .toUpperCase() ??
-                                            "G",
-                                        style: const TextStyle(
-                                          color: AppColors.accent,
-                                          fontWeight: FontWeight.bold,
-                                          fontSize: 18,
-                                        ),
-                                      )
+                                  _currentUser?.username[0]
+                                      .toUpperCase() ??
+                                      "G",
+                                  style: const TextStyle(
+                                    color: AppColors.accent,
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 18,
+                                  ),
+                                )
                                     : null,
                               ),
                             ),
@@ -208,7 +207,7 @@ class _FeedScreenState extends State<FeedScreen> {
                                   context,
                                   MaterialPageRoute(
                                     builder: (context) =>
-                                        const SettingsScreen(),
+                                    const SettingsScreen(),
                                   ),
                                 );
                               },
@@ -241,59 +240,64 @@ class _FeedScreenState extends State<FeedScreen> {
           onRefresh: _loadData,
           color: AppColors.primary,
           backgroundColor: surfaceColor,
+          // ✅ Using ShimmerLoading here (from previous steps)
           child: _isLoading
-              ? const Center(
-                  child: CircularProgressIndicator(color: AppColors.primary),
-                )
+              ? const ShimmerLoading()
               : _posts.isEmpty
               ? _buildEmptyState(l10n, isDark)
               : MediaQuery.removePadding(
-                  context: context,
-                  removeTop: true,
-                  // ✅ Wrap with NotificationListener to detect scroll
-                  child: NotificationListener<ScrollNotification>(
-                    onNotification: (ScrollNotification scrollInfo) {
-                      // Check if scrolled to bottom (with 200px buffer)
-                      if (!_isLoadingMore &&
-                          _hasMore &&
-                          scrollInfo.metrics.pixels >=
-                              scrollInfo.metrics.maxScrollExtent - 200) {
-                        _loadMoreData();
-                      }
-                      return false;
-                    },
-                    child: ListView.separated(
-                      // ✅ Add +1 to count if we have more posts (for the loader)
-                      itemCount: _posts.length + (_hasMore ? 1 : 0),
-                      separatorBuilder: (context, index) => const Divider(),
-                      itemBuilder: (context, index) {
-                        // ✅ Show Loader at the bottom
-                        if (index == _posts.length) {
-                          return const Padding(
-                            padding: EdgeInsets.all(16.0),
-                            child: Center(
-                              child: SizedBox(
-                                width: 24,
-                                height: 24,
-                                child: CircularProgressIndicator(
-                                  strokeWidth: 2,
-                                ),
-                              ),
-                            ),
-                          );
-                        }
+            context: context,
+            removeTop: true,
+            child: NotificationListener<ScrollNotification>(
+              onNotification: (ScrollNotification scrollInfo) {
+                if (!_isLoadingMore &&
+                    _hasMore &&
+                    scrollInfo.metrics.pixels >=
+                        scrollInfo.metrics.maxScrollExtent - 200) {
+                  _loadMoreData();
+                }
+                return false;
+              },
+              child: ListView.separated(
+                itemCount: _posts.length + (_hasMore ? 1 : 0),
+                separatorBuilder: (context, index) => const Divider(),
+                itemBuilder: (context, index) {
+                  if (index == _posts.length) {
+                    return const Padding(
+                      padding: EdgeInsets.all(16.0),
+                      child: Center(
+                        child: SizedBox(
+                          width: 24,
+                          height: 24,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                          ),
+                        ),
+                      ),
+                    );
+                  }
 
-                        // Normal Post
-                        return PostItem(
-                          post: _posts[index],
-                          onRefresh: () {
-                            setState(() {});
-                          },
-                        );
-                      },
-                    ),
-                  ),
-                ),
+                  // ✅ HERE IS THE FIX
+                  return PostItem(
+                    post: _posts[index],
+                    onRefresh: () {
+                      setState(() {});
+                    },
+                    // ✅ Add this onDelete callback
+                    onDelete: () {
+                      setState(() {
+                        _posts.removeAt(index);
+                      });
+                      // Optional: Show a snackbar
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(content: Text(l10n.postDeleted ?? "Post deleted")),
+                      );
+                    },
+                  );
+                },
+              ),
+            ),
+          ),
         ),
       ),
       floatingActionButton: FloatingActionButton(

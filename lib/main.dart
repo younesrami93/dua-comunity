@@ -1,4 +1,5 @@
 import 'package:dua_app/l10n/app_localizations.dart';
+import 'package:dua_app/services/notification_service.dart';
 import 'package:dua_app/theme/app_theme.dart';
 import 'package:firebase_analytics/firebase_analytics.dart';
 import 'package:firebase_app_check/firebase_app_check.dart';
@@ -16,51 +17,108 @@ final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  await Firebase.initializeApp();
 
-  await FirebaseAppCheck.instance.activate(
-    // Default provider for Android is Play Integrity
-    androidProvider: kDebugMode
-        ? AndroidProvider.debug
-        : AndroidProvider.playIntegrity,
+  // ✅ GLOBAL ERROR CATCHER for Black Screen Debugging
+  try {
+    // 1. Initialize Firebase
+    await Firebase.initializeApp();
 
-    // Default provider for iOS is DeviceCheck/AppAttest
-    appleProvider: kDebugMode
-        ? AppleProvider.debug
-        : AppleProvider.appAttest,
+    // 2. Load Env variables
+    await dotenv.load(fileName: ".env");
 
-  );
+    // 3. Initialize App Check
+    // We intentionally catch errors here so App Check failure doesn't crash the whole app
+    try {
+      await FirebaseAppCheck.instance.activate(
+        androidProvider: kDebugMode
+            ? AndroidProvider.debug
+            : AndroidProvider.playIntegrity,
+        appleProvider: kDebugMode
+            ? AppleProvider.debug
+            : AppleProvider.appAttest,
+      );
+    } catch (e) {
+      print("App Check warning: $e");
+    }
 
-  final prefs = await SharedPreferences.getInstance();
+    // 4. Initialize Notifications
+    await NotificationService().init();
 
-  final String? token = prefs.getString('auth_token');
-  final String? languageCode = prefs.getString('language_code');
+    // 5. Load Preferences & Theme
+    final prefs = await SharedPreferences.getInstance();
 
-  // 1. Load Theme Preference (Default to System)
-  final String themePref = prefs.getString('theme_mode') ?? 'system';
-  ThemeMode initialThemeMode;
-  if (themePref == 'light') {
-    initialThemeMode = ThemeMode.light;
-  } else if (themePref == 'dark') {
-    initialThemeMode = ThemeMode.dark;
-  } else {
-    initialThemeMode = ThemeMode.system;
+    final String? token = prefs.getString('auth_token');
+    final String? languageCode = prefs.getString('language_code');
+    final String themePref = prefs.getString('theme_mode') ?? 'system';
+
+    ThemeMode initialThemeMode;
+    if (themePref == 'light') {
+      initialThemeMode = ThemeMode.light;
+    } else if (themePref == 'dark') {
+      initialThemeMode = ThemeMode.dark;
+    } else {
+      initialThemeMode = ThemeMode.system;
+    }
+
+    Widget startScreen;
+    if (token != null) {
+      startScreen = const FeedScreen();
+    } else {
+      startScreen = const LoginScreen();
+    }
+
+    // 6. Run the App
+    runApp(
+      MyApp(
+        startScreen: startScreen,
+        initialLanguageCode: languageCode,
+        initialThemeMode: initialThemeMode,
+      ),
+    );
+
+  } catch (e, stackTrace) {
+    // ⚠️ CRITICAL: IF STARTUP FAILS, SHOW ERROR ON SCREEN
+    // This prevents the "Black Screen" and tells you exactly what went wrong.
+    print("STARTUP ERROR: $e");
+    runApp(
+      MaterialApp(
+        home: Scaffold(
+          backgroundColor: Colors.white,
+          body: Padding(
+            padding: const EdgeInsets.all(20.0),
+            child: Center(
+              child: SingleChildScrollView(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    const Icon(Icons.error_outline, color: Colors.red, size: 60),
+                    const SizedBox(height: 20),
+                    const Text(
+                      "App Failed to Start",
+                      style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Colors.black),
+                    ),
+                    const SizedBox(height: 20),
+                    Text(
+                      e.toString(),
+                      style: const TextStyle(color: Colors.red, fontSize: 16),
+                      textAlign: TextAlign.center,
+                    ),
+                    const SizedBox(height: 10),
+                    const Divider(),
+                    Text(
+                      stackTrace.toString().split('\n').take(5).join('\n'), // Show first 5 lines of stack
+                      style: const TextStyle(fontSize: 12, color: Colors.grey),
+                      textAlign: TextAlign.center,
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
   }
-
-  Widget startScreen;
-  if (token != null) {
-    startScreen = const FeedScreen();
-  } else {
-    startScreen = const LoginScreen();
-  }
-
-  await dotenv.load(fileName: ".env");
-
-  runApp(MyApp(
-    startScreen: startScreen,
-    initialLanguageCode: languageCode,
-    initialThemeMode: initialThemeMode, // Pass loaded theme
-  ));
 }
 
 class MyApp extends StatefulWidget {
@@ -75,11 +133,10 @@ class MyApp extends StatefulWidget {
     required this.initialThemeMode,
   });
 
-
   static FirebaseAnalytics analytics = FirebaseAnalytics.instance;
-  static FirebaseAnalyticsObserver observer =
-  FirebaseAnalyticsObserver(analytics: analytics);
-
+  static FirebaseAnalyticsObserver observer = FirebaseAnalyticsObserver(
+    analytics: analytics,
+  );
 
   // Static method to change Locale
   static void setLocale(BuildContext context, Locale newLocale) {
@@ -135,15 +192,15 @@ class _MyAppState extends State<MyApp> {
       title: 'Dua Community',
       debugShowCheckedModeBanner: false,
 
-      navigatorObservers: <NavigatorObserver>[
-        MyApp.observer,
-      ],
+      navigatorObservers: <NavigatorObserver>[MyApp.observer],
 
       // ✅ Theme Configuration
       themeMode: _themeMode,
-      theme: AppTheme.lightTheme, // Used when mode is Light or System (day)
-      darkTheme: AppTheme.darkTheme, // Used when mode is Dark or System (night)
+      theme: AppTheme.lightTheme,
+      // Used when mode is Light or System (day)
+      darkTheme: AppTheme.darkTheme,
 
+      // Used when mode is Dark or System (night)
       locale: _locale,
       onGenerateTitle: (context) => AppLocalizations.of(context)!.appTitle,
       localizationsDelegates: const [

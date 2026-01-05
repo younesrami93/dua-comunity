@@ -45,6 +45,17 @@
 	<true/>
 	<key>UIApplicationSupportsIndirectInputEvents</key>
 	<true/>
+
+	<key>UIBackgroundModes</key>
+        <array>
+            <string>fetch</string>
+            <string>remote-notification</string>
+        </array>
+        <key>FirebaseAppDelegateProxyEnabled</key>
+        <false/>
+        <key>NSUserTrackingUsageDescription</key>
+        <string>We use notifications to keep you updated on your Duas.</string>
+
 </dict>
 </plist>
 <key>CFBundleURLTypes</key>

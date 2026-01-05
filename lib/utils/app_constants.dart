@@ -3,8 +3,8 @@ class AppConstants {
   AppConstants._();
 
   // 🔗 Legal & Support URLs
-  static const String privacyPolicyUrl = 'https://duarequests.app/privacy-policy';
-  static const String termsOfServiceUrl = 'https://duarequests.app/terms-of-service';
+  static const String privacyPolicyUrl = 'https://duarequests.app/privacy';
+  static const String termsOfServiceUrl = 'https://duarequests.app/terms';
   static const String websiteUrl = 'https://duarequests.com';
 
   // 📧 Contact

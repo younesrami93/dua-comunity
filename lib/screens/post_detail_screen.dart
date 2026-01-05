@@ -1,6 +1,9 @@
 import 'package:dua_app/l10n/app_localizations.dart';
 import 'package:flutter/material.dart';
+import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:share_plus/share_plus.dart';
+
+// ✅ Imports
 import '../api/api_service.dart';
 import '../models/post.dart';
 import '../models/Comment.dart';
@@ -9,6 +12,7 @@ import '../theme/app_colors.dart';
 import 'profile_screen.dart';
 import '../widgets/report_modal.dart';
 import '../widgets/comment_item.dart';
+import '../widgets/shimmer_loading.dart'; // ✅ Import Shimmer
 
 class PostDetailScreen extends StatefulWidget {
   final Post post;
@@ -95,11 +99,33 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
 
   Future<void> _submitComment() async {
     if (_commentController.text.trim().isEmpty) return;
+
     final content = _commentController.text;
+
+    // 1. Clear text immediately for UX and unfocus
     _commentController.clear();
     FocusScope.of(context).unfocus();
+
+    // 2. Call API
     final success = await ApiService().postComment(_post.id, content);
-    if (success) _loadComments();
+
+    if (!mounted) return;
+
+    if (success) {
+      // 3. On Success: Trigger shimmer and reload comments
+      setState(() => _isLoadingComments = true);
+      await _loadComments();
+    } else {
+      // 4. On Failure: Restore text and show SnackBar
+      _commentController.text = content;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text("Failed to post comment. Please try again."),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
   }
 
   void _openProfile(int userId) {
@@ -194,6 +220,7 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
     if (mounted) {
       setState(() => _isDeleting = false);
       if (success) {
+        // ✅ Return TRUE so the previous screen removes it from the list
         Navigator.pop(context, true);
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -315,14 +342,9 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
               itemBuilder: (context, index) {
                 if (index == 0) return _buildHeader(l10n, isDark); // ✅ Pass theme
 
+                // ✅ NEW SHIMMER LOADING
                 if (_isLoadingComments) {
-                  return const Padding(
-                    padding: EdgeInsets.all(40.0),
-                    child: Center(
-                      child: CircularProgressIndicator(
-                          color: AppColors.primary),
-                    ),
-                  );
+                  return const ShimmerCommentList(); //
                 }
 
                 if (_comments.isEmpty) {
@@ -389,7 +411,6 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
 
     final String displayName =
     showRealIdentity ? _post.authorName : l10n.anonymousUser;
-
 
     final Widget avatar = GestureDetector(
       // ✅ Tap logic: Enabled if showing real identity
@@ -590,7 +611,8 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
             mainAxisAlignment: MainAxisAlignment.start,
             children: [
               _actionButton(
-                icon: _post.isLiked ? Icons.favorite : Icons.favorite_border,
+                iconSize: 17,
+                icon: FontAwesomeIcons.handsPraying,
                 color: _post.isLiked
                     ? AppColors.like
                     : subTextColor, // ✅ Dynamic
@@ -726,12 +748,13 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
     required Color color,
     required String text,
     required VoidCallback onTap,
+    double iconSize = 20,
   }) {
     return InkWell(
       onTap: onTap,
       child: Row(
         children: [
-          Icon(icon, color: color, size: 20),
+          Icon(icon, color: color, size: iconSize),
           const SizedBox(width: 6),
           Text(
             text,

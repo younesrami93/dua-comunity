@@ -1,6 +1,7 @@
 import 'dart:io';
 import 'package:dua_app/l10n/app_localizations.dart';
 import 'package:dua_app/utils/app_constants.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -186,9 +187,22 @@ class SettingsScreen extends StatelessWidget {
           fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
         ),
       ),
-      onTap: () {
+      onTap: () async {
         MyApp.setLocale(context, Locale(code));
         Navigator.pop(context);
+
+        try {
+          // We need the token to identify *which* device to update
+          String? token = await FirebaseMessaging.instance.getToken();
+
+          if (token != null) {
+            // Call the updated API method we created earlier
+            await ApiService().updateDeviceToken(token, languageCode: code);
+            print("Backend updated to language: $code");
+          }
+        } catch (e) {
+          print("Failed to sync language to backend: $e");
+        }
       },
     );
   }
@@ -496,14 +510,14 @@ class SettingsScreen extends StatelessWidget {
               final user = ApiService().currentUser;
               final bool canChangePassword =
                   user != null &&
-                      !user.isGuest &&
-                      user.auth_provider == 'email';
+                  !user.isGuest &&
+                  user.auth_provider == 'email';
 
               final authProvider = user?.auth_provider;
-              if(user == null)
+              if (user == null)
                 print("user is null");
               else
-                print("user is not null "+authProvider!);
+                print("user is not null " + authProvider!);
 
               return ListTile(
                 leading: Icon(
@@ -518,10 +532,10 @@ class SettingsScreen extends StatelessWidget {
                 ),
                 trailing: canChangePassword
                     ? Icon(
-                  Icons.arrow_forward_ios,
-                  size: 16,
-                  color: subTextColor,
-                )
+                        Icons.arrow_forward_ios,
+                        size: 16,
+                        color: subTextColor,
+                      )
                     : null,
                 enabled: canChangePassword,
                 // ✅ Disables click if false

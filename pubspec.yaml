@@ -1,7 +1,6 @@
 name: dua_app
 description: "Dua social media for muslims"
 
-publish_to: 'none' # Remove this line if you wish to publish to pub.dev
 
 version: 1.0.0+1
 
@@ -13,7 +12,7 @@ dependencies:
   flutter:
     sdk: flutter
 
-  flutter_dotenv: ^5.1.0 # Check pub.dev for latest
+  flutter_dotenv: ^5.1.0
 
   # Networking
   http: ^1.2.0
@@ -21,6 +20,9 @@ dependencies:
   #Localisations
   flutter_localizations :
     sdk: flutter
+  #firebase notifications
+  firebase_messaging: ^15.0.1
+  flutter_local_notifications: ^17.1.0
 
 
   firebase_core: ^3.0.0
@@ -44,7 +46,10 @@ dependencies:
   url_launcher: ^6.3.2
   google_sign_in: ^6.2.1
   firebase_analytics: ^11.6.0
+  shimmer: ^3.0.0
 
+  # ✅ Added for Prayer Icon
+  font_awesome_flutter: ^10.8.0
 
 dev_dependencies:
   flutter_test:

@@ -19,7 +19,7 @@ class AppColors {
   // Shared Colors (Brand)
   static const Color primary = Color(0xFF00AE62);
   static const Color accent = Color(0xFF00AE62);
-  static const Color like = Colors.redAccent;
+  static const Color like = primary;
 
   // ===========================================================================
   // ☀️ NEW: LIGHT MODE COLORS

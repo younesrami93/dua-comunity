@@ -1,6 +1,7 @@
 import 'package:dua_app/l10n/app_localizations.dart';
 import 'package:dua_app/screens/profile_screen.dart';
 import 'package:flutter/material.dart';
+import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:share_plus/share_plus.dart';
 
 // ✅ Import generated localizations
@@ -13,8 +14,14 @@ import '../api/api_service.dart';
 class PostItem extends StatefulWidget {
   final Post post;
   final VoidCallback? onRefresh; // callback if we need to reload list
+  final VoidCallback? onDelete; // ✅ callback if post is deleted
 
-  const PostItem({super.key, required this.post, this.onRefresh});
+  const PostItem({
+    super.key,
+    required this.post,
+    this.onRefresh,
+    this.onDelete,
+  });
 
   @override
   State<PostItem> createState() => _PostItemState();
@@ -43,9 +50,7 @@ class _PostItemState extends State<PostItem> {
     setState(() => _isTranslating = true);
 
     // Get current locale
-    final String currentLang = Localizations
-        .localeOf(context)
-        .languageCode;
+    final String currentLang = Localizations.localeOf(context).languageCode;
 
     final result = await ApiService().translateContent(
       id: _post.id,
@@ -87,8 +92,7 @@ class _PostItemState extends State<PostItem> {
     // Access localization using the current context
     final l10n = AppLocalizations.of(context)!;
     final String text =
-        "${_post.content}\n\n${l10n
-        .sharePostText}"; // "Shared via Dua Community"
+        "${_post.content}\n\n${l10n.sharePostText}"; // "Shared via Dua Community"
     Share.share(text);
   }
 
@@ -114,19 +118,17 @@ class _PostItemState extends State<PostItem> {
     final isDark = theme.brightness == Brightness.dark;
 
     // Dynamic Colors
-    final Color textColor = isDark ? AppColors.textPrimary : AppColors
-        .textPrimaryLight;
-    final Color subTextColor = isDark ? AppColors.textSecondary : AppColors
-        .textSecondaryLight;
-    final Color surfaceColor = isDark ? AppColors.surface : AppColors
-        .surfaceLight;
+    final Color textColor =
+    isDark ? AppColors.textPrimary : AppColors.textPrimaryLight;
+    final Color subTextColor =
+    isDark ? AppColors.textSecondary : AppColors.textSecondaryLight;
+    final Color surfaceColor =
+    isDark ? AppColors.surface : AppColors.surfaceLight;
     final Color backgroundColor = theme.scaffoldBackgroundColor;
 
-    final String currentLang = Localizations
-        .localeOf(context)
-        .languageCode;
-    bool showTranslation = widget.post.language != null &&
-        widget.post.language != currentLang;
+    final String currentLang = Localizations.localeOf(context).languageCode;
+    bool showTranslation =
+        widget.post.language != null && widget.post.language != currentLang;
 
     final bool isMine = widget.post.authorId == ApiService().currentUser?.id;
     if (isMine) showTranslation = false;
@@ -138,24 +140,33 @@ class _PostItemState extends State<PostItem> {
     final bool showRealIdentity = !isAnonymous || isMine;
 
     // Localized "Anonymous" fallback
-    final String displayName = showRealIdentity
-        ? _post.authorName
-        : l10n.anonymousUser;
+    final String displayName =
+    showRealIdentity ? _post.authorName : l10n.anonymousUser;
 
     // ✅ Check if Banned
     final bool isBanned = _post.status == 'banned';
 
     return GestureDetector(
-      onTap: () {
-        Navigator.push(
+      // ✅ UPDATED ONTAP LOGIC
+      onTap: () async {
+        final result = await Navigator.push(
           context,
           MaterialPageRoute(
             builder: (context) => PostDetailScreen(post: _post),
           ),
-        ).then((_) {
-          // If we come back from details, maybe refresh to show updated likes?
+        );
+
+        // Check if the post was deleted (Detail screen returns true)
+        if (result == true) {
+          if (widget.onDelete != null) {
+            widget.onDelete!();
+          } else if (widget.onRefresh != null) {
+            widget.onRefresh!();
+          }
+        } else {
+          // If we come back from details (e.g. just liked/commented), refresh items
           if (widget.onRefresh != null) widget.onRefresh!();
-        });
+        }
       },
       child: Container(
         color: backgroundColor, // ✅ Dynamic Background
@@ -165,21 +176,23 @@ class _PostItemState extends State<PostItem> {
           children: [
             // --- COLUMN 1: Avatar ---
 
-
             GestureDetector(
               // ✅ Tap logic: Enabled if showing real identity
               onTap: showRealIdentity ? () => _openProfile(context) : null,
               child: CircleAvatar(
                 radius: 20,
-                backgroundColor: showRealIdentity
+                backgroundColor:
+                showRealIdentity
                     ? surfaceColor // ✅ Dynamic Surface
                     : Colors.grey,
                 // ✅ Load image if Real Identity is ON and Avatar is NOT NULL
-                backgroundImage: (showRealIdentity && widget.post.authorAvatar != null)
+                backgroundImage:
+                (showRealIdentity && widget.post.authorAvatar != null)
                     ? NetworkImage(widget.post.authorAvatar!)
                     : null,
                 // ✅ UPDATED: Only show Text child if there is NO image
-                child: showRealIdentity
+                child:
+                showRealIdentity
                     ? (widget.post.authorAvatar == null
                     ? Text(
                   displayName.isNotEmpty
@@ -191,7 +204,11 @@ class _PostItemState extends State<PostItem> {
                   ),
                 )
                     : null) // Image exists, so hide the letter
-                    : const Icon(Icons.person, color: Colors.white, size: 20),
+                    : const Icon(
+                  Icons.person,
+                  color: Colors.white,
+                  size: 20,
+                ),
               ),
             ),
 
@@ -212,7 +229,8 @@ class _PostItemState extends State<PostItem> {
                             // ✅ Name
                             Flexible(
                               child: GestureDetector(
-                                onTap: showRealIdentity
+                                onTap:
+                                showRealIdentity
                                     ? () => _openProfile(context)
                                     : null,
                                 child: Text(
@@ -290,14 +308,15 @@ class _PostItemState extends State<PostItem> {
                       child: Row(
                         children: [
                           const Icon(
-                              Icons.warning_amber_rounded, color: Colors.red,
-                              size: 20),
+                            Icons.warning_amber_rounded,
+                            color: Colors.red,
+                            size: 20,
+                          ),
                           const SizedBox(width: 8),
                           Expanded(
                             child: Text(
                               // Displays "Flagged: [Category]" e.g., "Flagged: Harassment"
-                              "Flagged: ${_post.safetyLabel?.toUpperCase() ??
-                                  'VIOLATION'}",
+                              "Flagged: ${_post.safetyLabel?.toUpperCase() ?? 'VIOLATION'}",
                               style: const TextStyle(
                                 color: Colors.red,
                                 fontWeight: FontWeight.bold,
@@ -360,12 +379,11 @@ class _PostItemState extends State<PostItem> {
                     mainAxisAlignment: MainAxisAlignment.start,
                     children: [
                       _actionButton(
-                        icon: _post.isLiked
-                            ? Icons.favorite
-                            : Icons.favorite_border,
+                        iconSize: 16,
+                        icon:FontAwesomeIcons.handsPraying,
                         color: _post.isLiked
                             ? AppColors.like
-                            : subTextColor, // ✅ Dynamic
+                            : subTextColor,// ✅ Dynamic
                         label: '${_post.likesCount}',
                         onTap: () async {
                           setState(() {
@@ -384,14 +402,23 @@ class _PostItemState extends State<PostItem> {
                         icon: Icons.chat_bubble_outline,
                         color: subTextColor, // ✅ Dynamic
                         label: '${_post.commentsCount}',
-                        onTap: () {
-                          Navigator.push(
+                        onTap: () async {
+                          // ✅ Updated logic for comment button too
+                          final result = await Navigator.push(
                             context,
                             MaterialPageRoute(
-                              builder: (context) =>
-                                  PostDetailScreen(post: _post),
+                              builder:
+                                  (context) => PostDetailScreen(post: _post),
                             ),
                           );
+
+                          if (result == true) {
+                            if (widget.onDelete != null) widget.onDelete!();
+                            else if (widget.onRefresh != null)
+                              widget.onRefresh!();
+                          } else {
+                            if (widget.onRefresh != null) widget.onRefresh!();
+                          }
                         },
                       ),
 
@@ -403,7 +430,6 @@ class _PostItemState extends State<PostItem> {
                         label: '',
                         onTap: _sharePost, // ✅ Share button works
                       ),
-
                     ],
                   ),
                 ],
@@ -420,6 +446,7 @@ class _PostItemState extends State<PostItem> {
     required String label,
     required VoidCallback onTap,
     required Color color,
+    double iconSize = 18,
   }) {
     return InkWell(
       onTap: onTap,
@@ -427,7 +454,7 @@ class _PostItemState extends State<PostItem> {
         padding: const EdgeInsets.symmetric(vertical: 5.0),
         child: Row(
           children: [
-            Icon(icon, size: 18, color: color),
+            Icon(icon, size: iconSize, color: color),
             if (label.isNotEmpty) ...[
               const SizedBox(width: 4),
               Text(label, style: TextStyle(color: color, fontSize: 13)),

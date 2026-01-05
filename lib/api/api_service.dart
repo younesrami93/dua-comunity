@@ -4,6 +4,7 @@ import 'package:dua_app/l10n/app_localizations.dart';
 import 'package:dua_app/main.dart'; // Ensure this imports your global navigatorKey
 import 'package:dua_app/screens/login_screen.dart';
 import 'package:firebase_app_check/firebase_app_check.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart' hide Category;
 import 'package:flutter/material.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
@@ -199,8 +200,6 @@ class ApiService {
       return prefs.getString('auth_token');
     }
 
-
-
     final uuid = await _getDeviceUuid();
 
     // Check if we have a stored guest UUID to reuse (optional feature)
@@ -323,6 +322,7 @@ class ApiService {
     final response = await _post('/posts/$postId/comments', {
       'content': content,
     });
+    print(response.body);
     return response.statusCode == 201;
   }
 
@@ -407,6 +407,7 @@ class ApiService {
   Future<bool> deleteAccount(String password) async {
     final prefs = await SharedPreferences.getInstance();
     final token = prefs.getString('auth_token');
+    final appCheckToken = await _getAppCheckToken();
 
     try {
       final response = await http.post(
@@ -415,6 +416,7 @@ class ApiService {
           'Authorization': 'Bearer $token',
           'Content-Type': 'application/json', // Required for body
           'Accept': 'application/json',
+          if (appCheckToken != null) 'X-Firebase-AppCheck': appCheckToken,
         },
         body: jsonEncode({'password': password}),
       );
@@ -434,6 +436,12 @@ class ApiService {
     final prefs = await SharedPreferences.getInstance();
     final token = prefs.getString('auth_token');
 
+    final fcmToken = await FirebaseMessaging.instance.getToken();
+
+    try {
+      await FirebaseMessaging.instance.deleteToken();
+    } catch (_) {}
+
     await prefs.remove('auth_token');
     await prefs.remove('user_data');
 
@@ -449,7 +457,6 @@ class ApiService {
     }
     final appCheckToken = await _getAppCheckToken();
 
-
     try {
       await http.post(
         Uri.parse('$baseUrl/auth/logout'),
@@ -457,9 +464,8 @@ class ApiService {
           'Authorization': 'Bearer $token',
           'Accept': 'application/json',
           if (appCheckToken != null) 'X-Firebase-AppCheck': appCheckToken,
-
-
         },
+        body: jsonEncode({'fcm_token': fcmToken}),
       );
     } catch (_) {}
   }
@@ -515,6 +521,8 @@ class ApiService {
         }
         print("login success");
 
+        _syncFcmToken();
+
         return null; // ✅ Success
       } else {
         // Return the specific error from backend, or fallback to localized generic error
@@ -564,6 +572,8 @@ class ApiService {
           await _saveUserLocally(AppUser.fromJson(data['user']));
         }
 
+        _syncFcmToken();
+
         return true;
       }
       return false;
@@ -608,6 +618,8 @@ class ApiService {
     final prefs = await SharedPreferences.getInstance();
     final token = prefs.getString('auth_token');
 
+    final appCheckToken = await _getAppCheckToken();
+
     try {
       final response = await http.delete(
         Uri.parse('$baseUrl/comments/$commentId'),
@@ -615,8 +627,10 @@ class ApiService {
         headers: {
           'Authorization': 'Bearer $token',
           'Accept': 'application/json',
+          if (appCheckToken != null) 'X-Firebase-AppCheck': appCheckToken,
         },
       );
+      print(response.body);
 
       return response.statusCode == 200 || response.statusCode == 204;
     } catch (e) {
@@ -631,13 +645,17 @@ class ApiService {
     final token = prefs.getString('auth_token');
 
     try {
+      final appCheckToken = await _getAppCheckToken();
+
       final response = await http.delete(
         Uri.parse('$baseUrl/posts/$postId'),
         headers: {
           'Authorization': 'Bearer $token',
           'Accept': 'application/json',
+          if (appCheckToken != null) 'X-Firebase-AppCheck': appCheckToken,
         },
       );
+      print(response.body);
 
       return response.statusCode == 200 || response.statusCode == 204;
     } catch (e) {
@@ -732,6 +750,7 @@ class ApiService {
         if (data['user'] != null) {
           await _saveUserLocally(AppUser.fromJson(data['user']));
         }
+        _syncFcmToken();
         return null; // Null means success in your app logic
       } else {
         return data['message'] ?? "Social login failed";
@@ -750,6 +769,8 @@ class ApiService {
     final prefs = await SharedPreferences.getInstance();
     final token = prefs.getString('auth_token');
 
+    final appCheckToken = await _getAppCheckToken();
+
     try {
       final response = await http.post(
         Uri.parse('$baseUrl/auth/change-password'),
@@ -757,6 +778,7 @@ class ApiService {
           'Authorization': 'Bearer $token',
           'Content-Type': 'application/json',
           'Accept': 'application/json',
+          if (appCheckToken != null) 'X-Firebase-AppCheck': appCheckToken,
         },
         body: jsonEncode({
           'current_password': currentPassword,
@@ -793,6 +815,55 @@ class ApiService {
         'success': false,
         'message': 'Connection error. Please try again.',
       };
+    }
+  }
+
+  // ==========================================================
+  // ✅ NEW: FCM TOKEN MANAGER
+  // ==========================================================
+
+  Future<void> _syncFcmToken() async {
+    try {
+      final token = await FirebaseMessaging.instance.getToken();
+      if (token != null) {
+        updateDeviceToken(token);
+      }
+    } catch (e) {
+      print("Error syncing FCM Token: $e");
+    }
+  }
+
+  Future<void> updateDeviceToken(String token, {String? languageCode}) async {
+    try {
+      String finalLanguage;
+
+      if (languageCode != null) {
+        // 1. Use the one passed explicitly (if available)
+        finalLanguage = languageCode;
+      } else {
+        // 2. Try to get it from SharedPreferences (User's manual selection)
+        final prefs = await SharedPreferences.getInstance();
+        // Assuming you save the language with key 'language_code' in your settings
+        final savedLang = prefs.getString('language_code');
+
+        if (savedLang != null) {
+          finalLanguage = savedLang;
+        } else {
+          // 3. Fallback: Get the Device's System Language (e.g., 'en_US' -> 'en')
+          // explicitly import 'dart:io' for Platform
+          finalLanguage = Platform.localeName.split('_')[0];
+        }
+      }
+
+      final response = await _post('/user/device-token', {
+        'fcm_token': token,
+        'platform': Platform.isAndroid ? 'android' : 'ios',
+        'language_code': finalLanguage, // ✅ Sending it to Laravel
+      });
+
+      print("Device Token Updated [$finalLanguage]: $response");
+    } catch (e) {
+      print("Failed to update token: $e");
     }
   }
 }
