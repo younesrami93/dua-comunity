@@ -3,6 +3,8 @@ import 'dart:io';
 import 'package:dua_app/l10n/app_localizations.dart';
 import 'package:dua_app/main.dart';
 import 'package:dua_app/screens/login_screen.dart';
+import 'package:dua_app/utils/app_constants.dart';
+import 'package:dua_app/widgets/update_required_dialog.dart'; // ✅ Import the new dialog
 import 'package:firebase_app_check/firebase_app_check.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart' hide Category;
@@ -24,13 +26,16 @@ class ApiService {
 
   // Singleton
   static final ApiService _instance = ApiService._internal();
+
   factory ApiService() => _instance;
+
   ApiService._internal();
 
   // State
   AppUser? _currentUser;
   String? _cachedToken; // ✅ Optimization: Cache token in memory
   static String? _appVersion;
+  static String? _packageName;
 
   AppUser? get currentUser => _currentUser;
 
@@ -42,6 +47,7 @@ class ApiService {
     try {
       final packageInfo = await PackageInfo.fromPlatform();
       _appVersion = packageInfo.version;
+      _packageName = packageInfo.packageName;
       debugPrint("App Version: $_appVersion");
     } catch (e) {
       _appVersion = "1.0.0";
@@ -67,16 +73,16 @@ class ApiService {
   }
 
   // ==========================================================
-  // CORE HTTP ENGINE (Optimized)
+  // CORE HTTP ENGINE (With Logger & Interceptor)
   // ==========================================================
 
   /// Unified Request Handler
   Future<http.Response> _request(
-      String method,
-      String endpoint, {
-        Map<String, dynamic>? body,
-        bool requiresAuth = true,
-      }) async {
+    String method,
+    String endpoint, {
+    Map<String, dynamic>? body,
+    bool requiresAuth = true,
+  }) async {
     // 1. Ensure Token is loaded
     if (requiresAuth && _cachedToken == null) {
       final prefs = await SharedPreferences.getInstance();
@@ -94,6 +100,8 @@ class ApiService {
       'Content-Type': 'application/json',
       'Accept': 'application/json',
       'App-Version': _appVersion ?? '1.0.0',
+      'Package-Name': _packageName ?? '',
+      'Platform': Platform.isAndroid ? 'android' : 'ios',
       if (requiresAuth && _cachedToken != null)
         'Authorization': 'Bearer $_cachedToken',
       if (appCheckToken != null) 'X-Firebase-AppCheck': appCheckToken,
@@ -101,30 +109,69 @@ class ApiService {
     };
 
     final uri = Uri.parse('$baseUrl$endpoint');
+
+    // ✅ GLOBAL DEBUG LOGGER: REQUEST
+    if (kDebugMode) {
+      debugPrint('\n================= 🚀 API REQUEST =================');
+      debugPrint('METHOD  : $method');
+      debugPrint('URL     : $uri');
+      debugPrint('HEADERS : $headers');
+      if (body != null) {
+        debugPrint('BODY    : ${jsonEncode(body)}');
+      }
+      debugPrint('==================================================\n');
+    }
+
     http.Response response;
 
     // 4. Execute
     try {
       if (method == 'POST') {
-        response = await http.post(uri, headers: headers, body: jsonEncode(body));
+        response = await http.post(
+          uri,
+          headers: headers,
+          body: jsonEncode(body),
+        );
       } else if (method == 'DELETE') {
         response = await http.delete(uri, headers: headers);
       } else {
         response = await http.get(uri, headers: headers);
       }
     } catch (e) {
+      // ✅ GLOBAL DEBUG LOGGER: FAILURE
+      if (kDebugMode) {
+        debugPrint('\n================= ❌ API FAILURE =================');
+        debugPrint('URL     : $uri');
+        debugPrint('ERROR   : $e');
+        debugPrint('==================================================\n');
+      }
       throw Exception("Network Error: $e");
     }
 
-    // 5. Global Check (Banned/Auth)
+    // ✅ GLOBAL DEBUG LOGGER: RESPONSE
+    if (kDebugMode) {
+      debugPrint('\n================= ⬅️ API RESPONSE =================');
+      debugPrint('URL     : $uri');
+      debugPrint('STATUS  : ${response.statusCode}');
+      debugPrint('BODY    : ${response.body}');
+      debugPrint('==================================================\n');
+    }
+
+    // 5. Global Check (Banned/Auth/Update)
     await _handleGlobalErrors(response);
 
     return response;
   }
 
   Future<void> _handleGlobalErrors(http.Response response) async {
+    // 🛑 426: Force Update Interceptor
+    if (response.statusCode == 426) {
+      showUpdateRequiredDialog(); // Calls the function from the new widget file
+      return;
+    }
+
+    // 🚫 403: Banned Interceptor
     if (response.statusCode == 403) {
-      // Logic for Banned Users
       try {
         final body = jsonDecode(response.body);
         if (body['message'].toString().toLowerCase().contains('banned')) {
@@ -150,8 +197,13 @@ class ApiService {
         context: context,
         barrierDismissible: false,
         builder: (ctx) => AlertDialog(
-          title: Text(l10n?.accountBannedTitle ?? "Account Banned", style: const TextStyle(color: Colors.red)),
-          content: Text(l10n?.accountBannedMessage ?? "Your account has been banned."),
+          title: Text(
+            l10n?.accountBannedTitle ?? "Account Banned",
+            style: const TextStyle(color: Colors.red),
+          ),
+          content: Text(
+            l10n?.accountBannedMessage ?? "Your account has been banned.",
+          ),
           actions: [
             TextButton(
               onPressed: () {
@@ -159,7 +211,7 @@ class ApiService {
                 Navigator.pushAndRemoveUntil(
                   context,
                   MaterialPageRoute(builder: (c) => const LoginScreen()),
-                      (route) => false,
+                  (route) => false,
                 );
               },
               child: Text(l10n?.ok ?? "OK"),
@@ -189,12 +241,17 @@ class ApiService {
   Future<String?> login(String email, String password) async {
     try {
       final uuid = await _getDeviceUuid();
-      final response = await _request('POST', '/auth/login', body: {
-        'email': email,
-        'password': password,
-        'device_uuid': uuid,
-        'device_name': 'mobile_app',
-      }, requiresAuth: false);
+      final response = await _request(
+        'POST',
+        '/auth/login',
+        body: {
+          'email': email,
+          'password': password,
+          'device_uuid': uuid,
+          'device_name': 'mobile_app',
+        },
+        requiresAuth: false,
+      );
 
       final data = jsonDecode(response.body);
 
@@ -211,14 +268,19 @@ class ApiService {
   Future<bool> register(String name, String email, String password) async {
     try {
       final uuid = await _getDeviceUuid();
-      final response = await _request('POST', '/auth/register', body: {
-        'name': name,
-        'email': email,
-        'password': password,
-        'password_confirmation': password,
-        'device_name': 'mobile_app',
-        'device_uuid': uuid,
-      }, requiresAuth: false);
+      final response = await _request(
+        'POST',
+        '/auth/register',
+        body: {
+          'name': name,
+          'email': email,
+          'password': password,
+          'password_confirmation': password,
+          'device_name': 'mobile_app',
+          'device_uuid': uuid,
+        },
+        requiresAuth: false,
+      );
 
       if (response.statusCode == 200 || response.statusCode == 201) {
         await _handleAuthSuccess(jsonDecode(response.body));
@@ -239,9 +301,12 @@ class ApiService {
     String guestUuid = prefs.getString('guest_uuid') ?? uuid;
 
     try {
-      final response = await _request('POST', '/auth/guest', body: {
-        'device_uuid': guestUuid
-      }, requiresAuth: false);
+      final response = await _request(
+        'POST',
+        '/auth/guest',
+        body: {'device_uuid': guestUuid},
+        requiresAuth: false,
+      );
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
@@ -255,8 +320,11 @@ class ApiService {
   }
 
   Future<String?> loginWithGoogle() async {
-    const webClientId = "742894756114-53auc51llpq4g54gh3sct2hat0ir1j3k.apps.googleusercontent.com";
-    final GoogleSignIn googleSignIn = GoogleSignIn(serverClientId: webClientId, scopes: ['email', 'profile', 'openid']);
+    const webClientId = AppConstants.webClientId;
+    final GoogleSignIn googleSignIn = GoogleSignIn(
+      serverClientId: webClientId,
+      scopes: ['email', 'profile', 'openid'],
+    );
 
     try {
       final googleUser = await googleSignIn.signIn();
@@ -267,22 +335,35 @@ class ApiService {
 
       if (idToken == null) return "Failed to get ID Token";
 
-      return await _socialLoginBackend('google', idToken, googleAuth.accessToken);
+      return await _socialLoginBackend(
+        'google',
+        idToken,
+        googleAuth.accessToken,
+      );
     } catch (e) {
       return "Google Login failed: $e";
     }
   }
 
-  Future<String?> _socialLoginBackend(String provider, String token, String? accessToken) async {
+  Future<String?> _socialLoginBackend(
+    String provider,
+    String token,
+    String? accessToken,
+  ) async {
     try {
       final uuid = await _getDeviceUuid();
-      final response = await _request('POST', '/auth/social-login', body: {
-        'provider': provider,
-        'token': token,
-        'access_token': accessToken,
-        'device_uuid': uuid,
-        'device_name': 'mobile_app',
-      }, requiresAuth: false);
+      final response = await _request(
+        'POST',
+        '/auth/social-login',
+        body: {
+          'provider': provider,
+          'token': token,
+          'access_token': accessToken,
+          'device_uuid': uuid,
+          'device_name': 'mobile_app',
+        },
+        requiresAuth: false,
+      );
 
       final data = jsonDecode(response.body);
 
@@ -311,7 +392,9 @@ class ApiService {
 
   Future<void> logout() async {
     final fcmToken = await FirebaseMessaging.instance.getToken();
-    try { await FirebaseMessaging.instance.deleteToken(); } catch (_) {}
+    try {
+      await FirebaseMessaging.instance.deleteToken();
+    } catch (_) {}
 
     // Call backend
     if (_cachedToken != null) {
@@ -320,13 +403,19 @@ class ApiService {
       } catch (_) {}
     }
 
-    try { await GoogleSignIn().signOut(); } catch (_) {}
+    try {
+      await GoogleSignIn().signOut();
+    } catch (_) {}
     await _performLogoutCleanUp();
   }
 
   Future<bool> deleteAccount(String password) async {
     try {
-      final response = await _request('POST', '/auth/delete-account', body: {'password': password});
+      final response = await _request(
+        'POST',
+        '/auth/delete-account',
+        body: {'password': password},
+      );
       return response.statusCode == 200 || response.statusCode == 204;
     } catch (_) {
       return false;
@@ -337,7 +426,11 @@ class ApiService {
   // DATA METHODS (Feed, Posts, Comments)
   // ==========================================================
 
-  Future<Map<String, dynamic>> getFeed({int? userId, int? categoryId, String? cursor}) async {
+  Future<Map<String, dynamic>> getFeed({
+    int? userId,
+    int? categoryId,
+    String? cursor,
+  }) async {
     String url = '/posts?';
     if (cursor != null) url += 'cursor=$cursor&';
     if (userId != null) url += 'app_user_id=$userId&';
@@ -355,7 +448,11 @@ class ApiService {
     throw Exception('Failed to load feed');
   }
 
-  Future<Map<String, dynamic>> getComments(int postId, {String? nextCursor, int? commentId}) async {
+  Future<Map<String, dynamic>> getComments(
+    int postId, {
+    String? nextCursor,
+    int? commentId,
+  }) async {
     String url = '/posts/$postId/comments?';
     if (nextCursor != null) url += 'cursor=$nextCursor&';
     if (commentId != null) url += 'comment_id=$commentId&';
@@ -365,7 +462,9 @@ class ApiService {
     if (response.statusCode == 200) {
       final json = jsonDecode(response.body);
       return {
-        'comments': (json['data'] as List).map((e) => Comment.fromJson(e)).toList(),
+        'comments': (json['data'] as List)
+            .map((e) => Comment.fromJson(e))
+            .toList(),
         'next_cursor': _parseNextCursor(json),
       };
     }
@@ -381,17 +480,29 @@ class ApiService {
     throw Exception('Failed to load post');
   }
 
-  Future<bool> createPost(String content, int categoryId, bool isAnonymous) async {
-    final response = await _request('POST', '/posts', body: {
-      'content': content,
-      'category_id': categoryId,
-      'is_anonymous': isAnonymous,
-    });
+  Future<bool> createPost(
+    String content,
+    int categoryId,
+    bool isAnonymous,
+  ) async {
+    final response = await _request(
+      'POST',
+      '/posts',
+      body: {
+        'content': content,
+        'category_id': categoryId,
+        'is_anonymous': isAnonymous,
+      },
+    );
     return response.statusCode == 201;
   }
 
   Future<bool> postComment(int postId, String content) async {
-    final response = await _request('POST', '/posts/$postId/comments', body: {'content': content});
+    final response = await _request(
+      'POST',
+      '/posts/$postId/comments',
+      body: {'content': content},
+    );
     return response.statusCode == 201;
   }
 
@@ -422,21 +533,29 @@ class ApiService {
 
   Future<AppUser> getUserProfile() async {
     final response = await _request('GET', '/user');
-    if (response.statusCode == 200) return AppUser.fromJson(jsonDecode(response.body));
+    if (response.statusCode == 200)
+      return AppUser.fromJson(jsonDecode(response.body));
     throw Exception('Failed to load profile');
   }
 
   Future<AppUser> getUserById(int id) async {
     final response = await _request('GET', '/users/$id');
-    if (response.statusCode == 200) return AppUser.fromJson(jsonDecode(response.body));
+    if (response.statusCode == 200)
+      return AppUser.fromJson(jsonDecode(response.body));
     throw Exception('Failed to load user');
   }
 
-  Future<String?> translateContent({required int id, required String type, required String targetLang}) async {
+  Future<String?> translateContent({
+    required int id,
+    required String type,
+    required String targetLang,
+  }) async {
     try {
-      final response = await _request('POST', '/translate', body: {
-        'id': id, 'type': type, 'target_lang': targetLang,
-      });
+      final response = await _request(
+        'POST',
+        '/translate',
+        body: {'id': id, 'type': type, 'target_lang': targetLang},
+      );
       if (response.statusCode == 200) {
         return jsonDecode(response.body)['translation'];
       }
@@ -444,30 +563,50 @@ class ApiService {
     return null;
   }
 
-  Future<bool> reportContent({required String type, required int id, required String reason, String? details}) async {
-    final response = await _request('POST', '/report', body: {
-      'type': type, 'id': id, 'reason': reason, 'details': details,
-    });
+  Future<bool> reportContent({
+    required String type,
+    required int id,
+    required String reason,
+    String? details,
+  }) async {
+    final response = await _request(
+      'POST',
+      '/report',
+      body: {'type': type, 'id': id, 'reason': reason, 'details': details},
+    );
     return response.statusCode == 200 || response.statusCode == 201;
   }
 
-  Future<Map<String, dynamic>> changePassword({required String currentPassword, required String newPassword, required String newPasswordConfirmation}) async {
+  Future<Map<String, dynamic>> changePassword({
+    required String currentPassword,
+    required String newPassword,
+    required String newPasswordConfirmation,
+  }) async {
     try {
-      final response = await _request('POST', '/auth/change-password', body: {
-        'current_password': currentPassword,
-        'new_password': newPassword,
-        'new_password_confirmation': newPasswordConfirmation,
-      });
+      final response = await _request(
+        'POST',
+        '/auth/change-password',
+        body: {
+          'current_password': currentPassword,
+          'new_password': newPassword,
+          'new_password_confirmation': newPasswordConfirmation,
+        },
+      );
 
       final data = jsonDecode(response.body);
       if (response.statusCode == 200) {
-        return {'success': true, 'message': data['message'] ?? 'Changed successfully'};
+        return {
+          'success': true,
+          'message': data['message'] ?? 'Changed successfully',
+        };
       } else {
         String msg = data['message'] ?? 'Failed';
         if (data['errors'] != null) {
           final errors = data['errors'];
-          if (errors['current_password'] != null) msg = errors['current_password'][0];
-          else if (errors['new_password'] != null) msg = errors['new_password'][0];
+          if (errors['current_password'] != null)
+            msg = errors['current_password'][0];
+          else if (errors['new_password'] != null)
+            msg = errors['new_password'][0];
         }
         return {'success': false, 'message': msg};
       }
@@ -495,11 +634,15 @@ class ApiService {
         finalLanguage = prefs.getString('language_code') ?? finalLanguage;
       }
 
-      await _request('POST', '/user/device-token', body: {
-        'fcm_token': token,
-        'platform': Platform.isAndroid ? 'android' : 'ios',
-        'language_code': finalLanguage,
-      });
+      await _request(
+        'POST',
+        '/user/device-token',
+        body: {
+          'fcm_token': token,
+          'platform': Platform.isAndroid ? 'android' : 'ios',
+          'language_code': finalLanguage,
+        },
+      );
     } catch (_) {}
   }
 

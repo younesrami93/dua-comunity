@@ -1,21 +1,21 @@
 {
   "project_info": {
-    "project_number": "709082590810",
-    "project_id": "dua-requests-for-yhy",
-    "storage_bucket": "dua-requests-for-yhy.firebasestorage.app"
+    "project_number": "41750807006",
+    "project_id": "dua-requests-8257a",
+    "storage_bucket": "dua-requests-8257a.firebasestorage.app"
   },
   "client": [
     {
       "client_info": {
-        "mobilesdk_app_id": "1:709082590810:android:788fdb683dc7bf38d97263",
+        "mobilesdk_app_id": "1:41750807006:android:283a745755964b08059d4f",
         "android_client_info": {
-          "package_name": "com.yahya.dua_app"
+          "package_name": "com.dua.community"
         }
       },
       "oauth_client": [],
       "api_key": [
         {
-          "current_key": "AIzaSyC8ba1WWUKM08UTQYwbhc9qhr5JUDWIM-g"
+          "current_key": "AIzaSyBcMa5mQfPDA_q1WyAjlgZEAkyIUfOzYQo"
         }
       ],
       "services": {
