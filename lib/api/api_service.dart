@@ -866,4 +866,18 @@ class ApiService {
       print("Failed to update token: $e");
     }
   }
+
+
+  Future<Post> getPostById(int id) async {
+    final response = await _get('/posts/$id');
+
+    if (response.statusCode == 200) {
+      final json = jsonDecode(response.body);
+      // Handles both cases: if Laravel wraps it in 'data' or returns directly
+      final postData = json['data'] ?? json;
+      return Post.fromJson(postData);
+    } else {
+      throw Exception('Failed to load post');
+    }
+  }
 }

@@ -8,7 +8,7 @@ import '../screens/profile_screen.dart';
 import '../models/post.dart';
 import '../api/api_service.dart';
 
-// ✅ Background Handler (Must be top-level function)
+// ✅ Background Handler
 Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
   print("Background Message: ${message.messageId}");
 }
@@ -21,6 +21,9 @@ class NotificationService {
   final FirebaseMessaging _firebaseMessaging = FirebaseMessaging.instance;
   final FlutterLocalNotificationsPlugin _localNotifications = FlutterLocalNotificationsPlugin();
 
+  // ✅ NEW: Variable to store data if the app hasn't started yet
+  Map<String, dynamic>? _pendingNotificationData;
+
   Future<void> init() async {
     // 1. Request Permission
     NotificationSettings settings = await _firebaseMessaging.requestPermission(
@@ -32,7 +35,7 @@ class NotificationService {
     if (settings.authorizationStatus == AuthorizationStatus.authorized) {
       print('User granted permission');
 
-      // 2. Setup Local Notifications (For foreground alerts)
+      // 2. Setup Local Notifications
       const AndroidInitializationSettings androidSettings =
       AndroidInitializationSettings('@mipmap/launcher_icon');
       const DarwinInitializationSettings iosSettings =
@@ -52,12 +55,10 @@ class NotificationService {
         },
       );
 
-      // 3. Get Device Token & Send to Backend
+      // 3. Get Device Token
       final token = await _firebaseMessaging.getToken();
       if (token != null) {
-        print("FCM Token: $token");
-        // TODO: Send this token to your Laravel Backend via ApiService
-        ApiService().updateDeviceToken(token);
+        // ApiService().updateDeviceToken(token); // Call this if needed
       }
 
       // 4. Handle Foreground Messages
@@ -70,14 +71,24 @@ class NotificationService {
         _handleMessageAction(message.data);
       });
 
-      // Check if app was opened from a terminated state
+      // 6. Check if app was opened from a terminated state
       FirebaseMessaging.instance.getInitialMessage().then((message) {
         if (message != null) {
+          print("Found initial message (Terminated state): ${message.data}");
           _handleMessageAction(message.data);
         }
       });
 
       FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
+    }
+  }
+
+  // ✅ NEW: Call this from main.dart after the app builds
+  void checkPendingNotification() {
+    if (_pendingNotificationData != null) {
+      print("Processing pending notification...");
+      _handleMessageAction(_pendingNotificationData!);
+      _pendingNotificationData = null; // Clear it after handling
     }
   }
 
@@ -98,37 +109,61 @@ class NotificationService {
             priority: Priority.high,
           ),
         ),
-        payload: jsonEncode(message.data), // Pass data to click handler
+        payload: jsonEncode(message.data),
       );
     }
   }
 
-  // ✅ THIS IS WHERE THE MAGIC HAPPENS (The "Actions")
   void _handleMessageAction(Map<String, dynamic> data) async {
+    // ✅ CRITICAL FIX: If Context is null, store data for later
     final context = navigatorKey.currentContext;
-    if (context == null) return;
+    if (context == null) {
+      print("Context is null, queuing notification action...");
+      _pendingNotificationData = data;
+      return;
+    }
 
-    final String? type = data['type']; // e.g., 'post', 'comment', 'profile'
-    final String? id = data['id'];
+    final String? type = data['type'];
+    final String? idString = data['id'];
 
-    if (type == 'post' || type == 'comment') {
-      // Fetch the full post before opening (since we only have ID)
-      // You might need to add getPostById to your ApiService
+    print("Handling Notification Action: Type=$type, ID=$idString");
+
+    if (idString == null) return;
+
+    if (type == 'post_details' || type == 'post' || type == 'comment') {
       try {
-        // Show loading dialog?
-        // Navigate
-        // Note: For now, we assume we fetch it or pass simple data
-        // For a real app, usually you fetch the single post from API here.
+        final int postId = int.parse(idString);
 
-        // Example:
-        // final post = await ApiService().getPostById(int.parse(id!));
-        // Navigator.push(context, MaterialPageRoute(builder: (_) => PostDetailScreen(post: post)));
+        // Show loading
+        showDialog(
+          context: context,
+          barrierDismissible: false,
+          builder: (ctx) => const Center(child: CircularProgressIndicator()),
+        );
+
+        // Fetch Post
+        final Post post = await ApiService().getPostById(postId);
+
+        // Close loading
+        Navigator.pop(context);
+
+        // Navigate
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) => PostDetailScreen(post: post),
+          ),
+        );
       } catch (e) {
+        if (Navigator.canPop(context)) Navigator.pop(context);
         print("Error opening post: $e");
       }
     } else if (type == 'profile') {
-      Navigator.push(context,
-          MaterialPageRoute(builder: (_) => ProfileScreen(userId: int.tryParse(id ?? '0'))));
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+            builder: (_) => ProfileScreen(userId: int.tryParse(idString ?? '0'))),
+      );
     }
   }
 }

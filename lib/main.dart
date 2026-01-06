@@ -165,6 +165,12 @@ class _MyAppState extends State<MyApp> {
       _locale = Locale(widget.initialLanguageCode!);
     }
     _themeMode = widget.initialThemeMode;
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      print("App built, checking for pending notifications...");
+      NotificationService().checkPendingNotification();
+    });
+
   }
 
   Future<void> setLocale(Locale newLocale) async {
