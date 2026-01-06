@@ -86,6 +86,14 @@ class NotificationService {
   // ✅ NEW: Call this from main.dart after the app builds
   void checkPendingNotification() {
     if (_pendingNotificationData != null) {
+      if (navigatorKey.currentContext == null) {
+        print("Context is still null in checkPendingNotification. Retrying...");
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          checkPendingNotification();
+        });
+        return;
+      }
+
       print("Processing pending notification...");
       _handleMessageAction(_pendingNotificationData!);
       _pendingNotificationData = null; // Clear it after handling
@@ -124,7 +132,8 @@ class NotificationService {
     }
 
     final String? type = data['type'];
-    final String? idString = data['id'];
+    // Safely convert ID to String (handles int/String differences in payloads)
+    final String? idString = data['id']?.toString();
 
     print("Handling Notification Action: Type=$type, ID=$idString");
 
@@ -145,25 +154,32 @@ class NotificationService {
         final Post post = await ApiService().getPostById(postId);
 
         // Close loading
-        Navigator.pop(context);
+        if (Navigator.canPop(context)) {
+          Navigator.pop(context);
+        }
 
         // Navigate
-        Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (_) => PostDetailScreen(post: post),
-          ),
-        );
+        if (navigatorKey.currentState != null) {
+          navigatorKey.currentState!.push(
+            MaterialPageRoute(
+              builder: (_) => PostDetailScreen(post: post),
+            ),
+          );
+        }
       } catch (e) {
-        if (Navigator.canPop(context)) Navigator.pop(context);
+        // Ensure loading dialog is closed if open
+        if (Navigator.canPop(context)) {
+          Navigator.pop(context);
+        }
         print("Error opening post: $e");
       }
     } else if (type == 'profile') {
-      Navigator.push(
-        context,
-        MaterialPageRoute(
-            builder: (_) => ProfileScreen(userId: int.tryParse(idString ?? '0'))),
-      );
+      if (navigatorKey.currentState != null) {
+        navigatorKey.currentState!.push(
+          MaterialPageRoute(
+              builder: (_) => ProfileScreen(userId: int.tryParse(idString ?? '0'))),
+        );
+      }
     }
   }
 }
