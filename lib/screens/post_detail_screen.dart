@@ -16,8 +16,13 @@ import '../widgets/shimmer_loading.dart'; // ✅ Import Shimmer
 
 class PostDetailScreen extends StatefulWidget {
   final Post post;
+  final int? highlightCommentId;
 
-  const PostDetailScreen({super.key, required this.post});
+  const PostDetailScreen({
+    super.key,
+    required this.post,
+    this.highlightCommentId,
+  });
 
   @override
   State<PostDetailScreen> createState() => _PostDetailScreenState();
@@ -56,7 +61,10 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
 
   Future<void> _loadComments() async {
     try {
-      final data = await ApiService().getComments(_post.id);
+      final data = await ApiService().getComments(
+        _post.id,
+        commentId: widget.highlightCommentId,
+      );
       if (mounted) {
         setState(() {
           _comments = List<Comment>.from(data['comments']);
@@ -76,6 +84,7 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
       final data = await ApiService().getComments(
         _post.id,
         nextCursor: _nextCursor,
+        commentId: widget.highlightCommentId,
       );
       if (mounted) {
         setState(() {
@@ -113,7 +122,10 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
 
     if (success) {
       // 3. On Success: Trigger shimmer and reload comments
-      setState(() => _isLoadingComments = true);
+      setState(() {
+        _post.commentsCount++; // ✅ NEW: Increment count here
+        _isLoadingComments = true;
+      });
       await _loadComments();
     } else {
       // 4. On Failure: Restore text and show SnackBar
@@ -196,7 +208,8 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
       builder: (ctx) => AlertDialog(
         title: const Text("Delete Post"),
         content: const Text(
-            "Are you sure you want to delete this post? This action cannot be undone."),
+          "Are you sure you want to delete this post? This action cannot be undone.",
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx, false),
@@ -223,9 +236,9 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
         // ✅ Return TRUE so the previous screen removes it from the list
         Navigator.pop(context, true);
       } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text("Failed to delete post")),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text("Failed to delete post")));
       }
     }
   }
@@ -238,8 +251,12 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
 
-    final textColor = isDark ? AppColors.textPrimary : AppColors.textPrimaryLight;
-    final subTextColor = isDark ? AppColors.textSecondary : AppColors.textSecondaryLight;
+    final textColor = isDark
+        ? AppColors.textPrimary
+        : AppColors.textPrimaryLight;
+    final subTextColor = isDark
+        ? AppColors.textSecondary
+        : AppColors.textSecondaryLight;
 
     // Check Ownership
     final currentUser = ApiService().currentUser;
@@ -264,10 +281,13 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
             Padding(
               padding: const EdgeInsets.all(12.0),
               child: SizedBox(
-                  width: 20,
-                  height: 20,
-                  child: CircularProgressIndicator(
-                      strokeWidth: 2, color: textColor)),
+                width: 20,
+                height: 20,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2,
+                  color: textColor,
+                ),
+              ),
             )
           else
             PopupMenuButton<String>(
@@ -290,8 +310,11 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
                       value: 'delete',
                       child: Row(
                         children: [
-                          Icon(Icons.delete_outline,
-                              color: Colors.red, size: 20),
+                          Icon(
+                            Icons.delete_outline,
+                            color: Colors.red,
+                            size: 20,
+                          ),
                           SizedBox(width: 10),
                           Text("Delete", style: TextStyle(color: Colors.red)),
                         ],
@@ -304,8 +327,11 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
                       value: 'report',
                       child: Row(
                         children: [
-                          const Icon(Icons.flag_outlined,
-                              size: 20, color: Colors.grey),
+                          const Icon(
+                            Icons.flag_outlined,
+                            size: 20,
+                            color: Colors.grey,
+                          ),
                           const SizedBox(width: 10),
                           Text(l10n.reportAction),
                         ],
@@ -319,8 +345,11 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
                     value: 'share',
                     child: Row(
                       children: [
-                        const Icon(Icons.share_outlined,
-                            size: 20, color: Colors.grey),
+                        const Icon(
+                          Icons.share_outlined,
+                          size: 20,
+                          color: Colors.grey,
+                        ),
                         const SizedBox(width: 10),
                         Text(l10n.shareAction),
                       ],
@@ -340,7 +369,8 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
               padding: const EdgeInsets.only(bottom: 20),
               itemCount: itemCount,
               itemBuilder: (context, index) {
-                if (index == 0) return _buildHeader(l10n, isDark); // ✅ Pass theme
+                if (index == 0)
+                  return _buildHeader(l10n, isDark); // ✅ Pass theme
 
                 // ✅ NEW SHIMMER LOADING
                 if (_isLoadingComments) {
@@ -356,14 +386,14 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
                     onPressed: _loadMoreComments,
                     child: _isLoadingMore
                         ? const SizedBox(
-                      width: 20,
-                      height: 20,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    )
+                            width: 20,
+                            height: 20,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          )
                         : Text(
-                      l10n.loadMoreComments,
-                      style: const TextStyle(color: AppColors.primary),
-                    ),
+                            l10n.loadMoreComments,
+                            style: const TextStyle(color: AppColors.primary),
+                          ),
                   );
                 }
 
@@ -371,9 +401,12 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
                   children: [
                     CommentItem(
                       comment: _comments[index - 1],
+                      isHighlighted:
+                          widget.highlightCommentId == _comments[index - 1].id,
                       onDeleted: () {
                         setState(() {
                           _comments.removeAt(index - 1);
+                          if (_post.commentsCount > 0) _post.commentsCount--;
                         });
                       },
                     ),
@@ -391,8 +424,12 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
 
   Widget _buildHeader(AppLocalizations l10n, bool isDark) {
     // Dynamic Colors
-    final textColor = isDark ? AppColors.textPrimary : AppColors.textPrimaryLight;
-    final subTextColor = isDark ? AppColors.textSecondary : AppColors.textSecondaryLight;
+    final textColor = isDark
+        ? AppColors.textPrimary
+        : AppColors.textPrimaryLight;
+    final subTextColor = isDark
+        ? AppColors.textSecondary
+        : AppColors.textSecondaryLight;
     final surfaceColor = isDark ? AppColors.surface : AppColors.surfaceLight;
     final borderColor = isDark ? AppColors.border : AppColors.borderLight;
 
@@ -409,15 +446,17 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
         _post.language != null && _post.language != currentLang;
     if (isMine) showTranslation = false;
 
-    final String displayName =
-    showRealIdentity ? _post.authorName : l10n.anonymousUser;
+    final String displayName = showRealIdentity
+        ? _post.authorName
+        : l10n.anonymousUser;
 
     final Widget avatar = GestureDetector(
       // ✅ Tap logic: Enabled if showing real identity
       onTap: showRealIdentity ? () => _openProfile(_post.authorId) : null,
       child: CircleAvatar(
         radius: 20,
-        backgroundColor: showRealIdentity ? surfaceColor : Colors.grey, // ✅ Dynamic Surface
+        backgroundColor: showRealIdentity ? surfaceColor : Colors.grey,
+        // ✅ Dynamic Surface
         // ✅ Load image ONLY if Real Identity is ON and Avatar is NOT NULL
         backgroundImage: (showRealIdentity && _post.authorAvatar != null)
             ? NetworkImage(_post.authorAvatar!)
@@ -425,14 +464,16 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
         child: (showRealIdentity && _post.authorAvatar != null)
             ? null // Hide child if image is showing
             : (showRealIdentity
-            ? Text(
-          displayName.isNotEmpty ? displayName[0].toUpperCase() : "?",
-          style: const TextStyle(
-            color: AppColors.accent,
-            fontWeight: FontWeight.bold,
-          ),
-        )
-            : const Icon(Icons.person, color: Colors.white, size: 20)),
+                  ? Text(
+                      displayName.isNotEmpty
+                          ? displayName[0].toUpperCase()
+                          : "?",
+                      style: const TextStyle(
+                        color: AppColors.accent,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    )
+                  : const Icon(Icons.person, color: Colors.white, size: 20)),
       ),
     );
 
@@ -475,9 +516,12 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
                             Container(
                               margin: const EdgeInsets.only(left: 8),
                               padding: const EdgeInsets.symmetric(
-                                  horizontal: 6, vertical: 2),
+                                horizontal: 6,
+                                vertical: 2,
+                              ),
                               decoration: BoxDecoration(
-                                color: subTextColor.withOpacity(0.2), // ✅ Dynamic
+                                color: subTextColor.withOpacity(0.2),
+                                // ✅ Dynamic
                                 borderRadius: BorderRadius.circular(4),
                               ),
                               child: Text(
@@ -494,7 +538,9 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
                       Text(
                         _post.categoryName,
                         style: TextStyle(
-                            color: subTextColor, fontSize: 12), // ✅ Dynamic
+                          color: subTextColor,
+                          fontSize: 12,
+                        ), // ✅ Dynamic
                       ),
                     ],
                   ),
@@ -502,7 +548,9 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
                   Text(
                     DateFormatter.timeAgo(context, _post.createdAt),
                     style: TextStyle(
-                        color: subTextColor, fontSize: 12), // ✅ Dynamic
+                      color: subTextColor,
+                      fontSize: 12,
+                    ), // ✅ Dynamic
                   ),
                 ],
               ),
@@ -520,7 +568,11 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
                   ),
                   child: Row(
                     children: [
-                      const Icon(Icons.warning_amber_rounded, color: Colors.red, size: 24),
+                      const Icon(
+                        Icons.warning_amber_rounded,
+                        color: Colors.red,
+                        size: 24,
+                      ),
                       const SizedBox(width: 10),
                       Expanded(
                         child: Text(
@@ -555,7 +607,9 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
                       height: 15,
                       width: 15,
                       child: CircularProgressIndicator(
-                          strokeWidth: 2, color: AppColors.accent),
+                        strokeWidth: 2,
+                        color: AppColors.accent,
+                      ),
                     ),
                   )
                 else if (_translatedText != null)
@@ -564,10 +618,11 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
                     margin: const EdgeInsets.only(top: 10.0),
                     padding: const EdgeInsets.all(10),
                     decoration: BoxDecoration(
-                        color: surfaceColor, // ✅ Dynamic
-                        borderRadius: BorderRadius.circular(8),
-                        border: Border.all(
-                            color: subTextColor.withOpacity(0.1))), // ✅ Dynamic
+                      color: surfaceColor, // ✅ Dynamic
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: subTextColor.withOpacity(0.1)),
+                    ),
+                    // ✅ Dynamic
                     child: Text(
                       _translatedText!,
                       style: TextStyle(
@@ -613,9 +668,8 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
               _actionButton(
                 iconSize: 17,
                 icon: FontAwesomeIcons.handsPraying,
-                color: _post.isLiked
-                    ? AppColors.like
-                    : subTextColor, // ✅ Dynamic
+                color: _post.isLiked ? AppColors.like : subTextColor,
+                // ✅ Dynamic
                 text: "${_post.likesCount}",
                 onTap: _toggleLike,
               ),
@@ -623,7 +677,7 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
               _actionButton(
                 icon: Icons.chat_bubble_outline,
                 color: subTextColor, // ✅ Dynamic
-                text: "${_comments.length}",
+                text: "${_post.commentsCount}",
                 onTap: () {
                   _commentFocusNode.requestFocus();
                 },
@@ -644,8 +698,12 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
 
   Widget _buildEmptyState(AppLocalizations l10n, bool isDark) {
     // Colors
-    final mainTextColor = isDark ? AppColors.textPrimary : AppColors.textPrimaryLight;
-    final subTextColor = isDark ? AppColors.textSecondary : AppColors.textSecondaryLight;
+    final mainTextColor = isDark
+        ? AppColors.textPrimary
+        : AppColors.textPrimaryLight;
+    final subTextColor = isDark
+        ? AppColors.textSecondary
+        : AppColors.textSecondaryLight;
 
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 40, horizontal: 20),
@@ -693,8 +751,12 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
     // Dynamic Colors
     final backgroundColor = Theme.of(context).scaffoldBackgroundColor;
     final borderColor = isDark ? AppColors.border : AppColors.borderLight;
-    final textColor = isDark ? AppColors.textPrimary : AppColors.textPrimaryLight;
-    final hintColor = isDark ? AppColors.textSecondary : AppColors.textSecondaryLight;
+    final textColor = isDark
+        ? AppColors.textPrimary
+        : AppColors.textPrimaryLight;
+    final hintColor = isDark
+        ? AppColors.textSecondary
+        : AppColors.textSecondaryLight;
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),

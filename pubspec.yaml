@@ -5,12 +5,14 @@ description: "Dua social media for muslims"
 version: 1.0.0+1
 
 environment:
-  sdk: ^3.9.0-333.2.beta
+  sdk: '^3.9.0-333.2.beta'
 
 
 dependencies:
   flutter:
     sdk: flutter
+
+  package_info_plus: ^8.0.0
 
   flutter_dotenv: ^5.1.0
 

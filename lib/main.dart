@@ -1,3 +1,4 @@
+import 'package:dua_app/api/api_service.dart';
 import 'package:dua_app/l10n/app_localizations.dart';
 import 'package:dua_app/services/notification_service.dart';
 import 'package:dua_app/theme/app_theme.dart';
@@ -42,7 +43,9 @@ void main() async {
     }
 
     // 4. Initialize Notifications
+    print("Initializing Notification Service...");
     await NotificationService().init();
+    print("Notification Service Init Complete.");
 
     // 5. Load Preferences & Theme
     final prefs = await SharedPreferences.getInstance();
@@ -67,6 +70,8 @@ void main() async {
       startScreen = const LoginScreen();
     }
 
+    await ApiService.initAppVersion();
+
     // 6. Run the App
     runApp(
       MyApp(
@@ -75,7 +80,6 @@ void main() async {
         initialThemeMode: initialThemeMode,
       ),
     );
-
   } catch (e, stackTrace) {
     // ⚠️ CRITICAL: IF STARTUP FAILS, SHOW ERROR ON SCREEN
     // This prevents the "Black Screen" and tells you exactly what went wrong.
@@ -91,11 +95,19 @@ void main() async {
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    const Icon(Icons.error_outline, color: Colors.red, size: 60),
+                    const Icon(
+                      Icons.error_outline,
+                      color: Colors.red,
+                      size: 60,
+                    ),
                     const SizedBox(height: 20),
                     const Text(
                       "App Failed to Start",
-                      style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Colors.black),
+                      style: TextStyle(
+                        fontSize: 22,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.black,
+                      ),
                     ),
                     const SizedBox(height: 20),
                     Text(
@@ -106,7 +118,8 @@ void main() async {
                     const SizedBox(height: 10),
                     const Divider(),
                     Text(
-                      stackTrace.toString().split('\n').take(5).join('\n'), // Show first 5 lines of stack
+                      stackTrace.toString().split('\n').take(5).join('\n'),
+                      // Show first 5 lines of stack
                       style: const TextStyle(fontSize: 12, color: Colors.grey),
                       textAlign: TextAlign.center,
                     ),
@@ -168,9 +181,17 @@ class _MyAppState extends State<MyApp> {
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
       print("App built, checking for pending notifications...");
+
+      // ✅ DEBUGGING: Show visual alert if data was found
+      final pendingData = NotificationService().pendingData;
+      if (pendingData != null) {
+        print("notification data found " + pendingData.toString());
+      } else {
+        print("notification data not found , it was null");
+      }
+
       NotificationService().checkPendingNotification();
     });
-
   }
 
   Future<void> setLocale(Locale newLocale) async {
