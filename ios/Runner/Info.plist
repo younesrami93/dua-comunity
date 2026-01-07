@@ -6,6 +6,12 @@
 	<string>$(DEVELOPMENT_LANGUAGE)</string>
 	<key>CFBundleDisplayName</key>
 	<string>Dua-Requests</string>
+	<key>FacebookAppID</key>
+    <string>YOUR_APP_ID</string>
+    <key>FacebookClientToken</key>
+    <string>YOUR_CLIENT_TOKEN</string>
+    <key>FacebookDisplayName</key>
+    <string>Dua-Requests</string>
 	<key>CFBundleExecutable</key>
 	<string>$(EXECUTABLE_NAME)</string>
 	<key>CFBundleIdentifier</key>
