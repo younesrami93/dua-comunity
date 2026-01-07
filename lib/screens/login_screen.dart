@@ -65,6 +65,30 @@ class _LoginScreenState extends State<LoginScreen> {
     }
   }
 
+  Future<void> _handleFacebookLogin() async {
+    setState(() => _isLoading = true);
+
+    final String? error = await ApiService().loginWithFacebook();
+
+    setState(() => _isLoading = false);
+
+    if (error == null) {
+      if (mounted) {
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (context) => const FeedScreen()),
+        );
+      }
+    } else {
+      if (mounted && error != "Login cancelled") {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(error)),
+        );
+      }
+    }
+  }
+
+
   // 3. Helper to open links
   Future<void> _launchLink(String urlString) async {
     try {
@@ -183,7 +207,7 @@ class _LoginScreenState extends State<LoginScreen> {
                 bgColor: btnBg,
                 textColor: btnText,
                 borderColor: borderColor,
-                onTap: () => _showComingSoon("Facebook"),
+                onTap: () => _handleFacebookLogin(),
               ),
 
               const SizedBox(height: 12),

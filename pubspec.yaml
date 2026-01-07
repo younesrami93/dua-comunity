@@ -12,12 +12,16 @@ dependencies:
   flutter:
     sdk: flutter
 
+
   package_info_plus: ^8.0.0
 
   flutter_dotenv: ^5.1.0
 
   # Networking
   http: ^1.2.0
+
+  flutter_facebook_auth: ^7.0.0
+
 
   #Localisations
   flutter_localizations :
@@ -50,6 +54,7 @@ dependencies:
   google_sign_in: ^6.2.1
   firebase_analytics: ^11.6.0
   shimmer: ^3.0.0
+
 
   # ✅ Added for Prayer Icon
   font_awesome_flutter: ^10.8.0

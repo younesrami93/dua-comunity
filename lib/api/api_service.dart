@@ -15,7 +15,7 @@ import 'package:package_info_plus/package_info_plus.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:device_info_plus/device_info_plus.dart';
 import 'package:google_sign_in/google_sign_in.dart';
-
+import 'package:flutter_facebook_auth/flutter_facebook_auth.dart' as fb;
 import '../models/AppUser.dart';
 import '../models/Comment.dart';
 import '../models/post.dart';
@@ -342,6 +342,37 @@ class ApiService {
       );
     } catch (e) {
       return "Google Login failed: $e";
+    }
+  }
+
+  Future<String?> loginWithFacebook() async {
+    try {
+      // Use fb.FacebookAuth to access the instance
+      final fb.LoginResult result = await fb.FacebookAuth.instance.login(
+        permissions: ['public_profile', 'email'],
+      );
+
+      if (result.status == fb.LoginStatus.success) {
+        final accessTokenObj = result.accessToken!;
+
+        // 2. Convert to Map to see what's inside and bypass the getter error
+        final Map<String, dynamic> tokenData = accessTokenObj.toJson();
+
+        // 3. Print the keys to debug (Check your console to see the real key name)
+        print("Facebook Token Keys: ${tokenData.keys}");
+
+        // 4. Extract the token (Try 'token', if null try 'accessToken')
+        final String tokenString =
+            tokenData['token'] ?? tokenData['accessToken'] ?? "";
+
+        return await _socialLoginBackend('facebook', tokenString, null);
+      } else if (result.status == fb.LoginStatus.cancelled) {
+        return "Login cancelled";
+      } else {
+        return "Facebook Login failed: ${result.message}";
+      }
+    } catch (e) {
+      return "Facebook Login error: $e";
     }
   }
 
